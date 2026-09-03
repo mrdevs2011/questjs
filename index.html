@@ -914,57 +914,31 @@ const WRITE_BANK = [
     return data.choices?.[0]?.message?.content || "";
   }
 
-  async function checkWrite(userCode, q, retryWrap, checkBtn){
-    if(!userCode.trim()){
-      alert("Avval kodingizni yozing.");
-      return;
-    }
-    checkBtn.disabled = true;
-    checkBtn.textContent = "Tekshirilyapti...";
-    explainBox.classList.add('show');
-    explainBox.innerHTML = "<span class='mono' style='color:var(--dim);'>AI kodingizni tekshiryapti...</span>";
+async function checkWrite(userCode, q, retryWrap, checkBtn){
+  if(!userCode.trim()){ alert("Avval kodingizni yozing."); return; }
+  checkBtn.disabled = true;
+  checkBtn.textContent = "Tekshirilyapti...";
+  explainBox.classList.add('show');
+  explainBox.innerHTML = "<span class='mono' style='color:var(--dim);'>AI kodingizni tekshiryapti...</span>";
 
-const prompt = `Sen qat'iy, talabchan, lekin adolatli JavaScript o'qituvchisan. O'quvchiga har doim "sen" deb murojaat qilasan (sizlab emas). O'quvchi quyidagi topshiriqni bajarishga harakat qildi.
+  const prompt = "Sen qat'iy, talabchan, lekin adolatli JavaScript o'qituvchisan. O'quvchiga har doim \"sen\" deb murojaat qilasan (sizlab emas). O'quvchi quyidagi topshiriqni bajarishga harakat qildi.\n\nTOPSHIRIQ: " + q.task + "\n\nNAMUNAVIY TO'G'RI YECHIM (faqat sen uchun mo'ljal, o'quvchiga aynan shu holida ko'rsatma):\n" + q.sample + "\n\nO'QUVCHINING JAVOBI:\n" + userCode + "\n\nVazifang:\n1. O'quvchining kodi to'g'ri ishlaydimi yoki yo'qmi aniqla (mantiqiy jihatdan, aynan bir xil yozilishi shart emas).\n2. Agar TO'G'RI bo'lsa: qisqa tan olib, keyingisiga o'tishga undab qo'y — ortiqcha maqtama, professional bo'l.\n3. Agar XATO yoki sintaksis xatosi bo'lsa: to'g'ridan-to'g'ri, aniq va qat'iy tilda qayerda xato ekanini ko'rsat. Kamsitma, haqorat qilma, lekin yumshatib ham o'tirma — xatoni aniq atab, \"diqqatliroq bo'l\" yoki shunga o'xshash qat'iy ohangda ayt, va oxirida albatta \"Qayta urinib ko'r!\" deb yoz.\n4. Javobingni o'zbek tilida, qisqa (3-5 gapdan oshmasin), qat'iy va professional ohangda, \"sen\" deb murojaat qilib yoz. Markdown belgilar (**, #) ishlatma, oddiy matn yoz.\n5. Javobingni FAQAT quyidagi JSON formatida qaytar, boshqa hech narsa yozma:\n{\"correct\": true yoki false, \"feedback\": \"javobing shu yerda\"}";
 
-TOPSHIRIQ: ${q.task}
-
-NAMUNAVIY TO'G'RI YECHIM (faqat sen uchun mo'ljal, o'quvchiga aynan shu holida ko'rsatma):
-${q.sample}
-
-O'QUVCHINING JAVOBI:
-${userCode}
-
-Vazifang:
-1. O'quvchining kodi to'g'ri ishlaydimi yoki yo'qmi aniqla (mantiqiy jihatdan, aynan bir xil yozilishi shart emas).
-2. Agar TO'G'RI bo'lsa: qisqa tan olib, keyingisiga o'tishga undab qo'y — ortiqcha maqtama, professional bo'l.
-3. Agar XATO yoki sintaksis xatosi bo'lsa: to'g'ridan-to'g'ri, aniq va qat'iy tilda qayerda xato ekanini ko'rsat. Kamsitma, haqorat qilma, lekin yumshatib ham o'tirma — xatoni aniq atab, "diqqatliroq bo'l" yoki shunga o'xshash qat'iy ohangda ayt, va oxirida albatta "Qayta urinib ko'r!" deb yoz.
-4. Javobingni o'zbek tilida, qisqa (3-5 gapdan oshmasin), qat'iy va professional ohangda, "sen" deb murojaat qilib yoz. Markdown belgilar (**, #) ishlatma, oddiy matn yoz.
-5. Javobingni FAQAT quyidagi JSON formatida qaytar, boshqa hech narsa yozma:
-{"correct": true yoki false, "feedback": "javobing shu yerda"}`;
-
+  try{
+    const text = await callGroq([{ role: "user", content: prompt }], { max_tokens: 1000 });
+    let parsed;
     try{
-      const text = await callGroq(
-        [
-          { role: "user", content: prompt }
-        ],
-        { max_tokens: 1000 }
-      );
-
-      let parsed;
-      try{
-        const clean = text.replace(/```json|```/g,'').trim();
-        parsed = JSON.parse(clean);
-      }catch(e){
-        parsed = { correct:false, feedback: text || "Javobni tahlil qilishda muammo bo'ldi. Qayta urinib ko'ring!" };
-      }
-
-      renderWriteFeedback(parsed, q, userCode, retryWrap, checkBtn);
-    }catch(err){
-      explainBox.innerHTML = "<b style='color:var(--danger);'>Xatolik: " + escHtml(err.message) + "</b> Internetni tekshirib, Sozlamalar bo'limida API kalitni kiriting.";
-      checkBtn.disabled = false;
-      checkBtn.textContent = "Javobni tekshirish";
+      const clean = text.replace(/```json|```/g,'').trim();
+      parsed = JSON.parse(clean);
+    }catch(e){
+      parsed = { correct:false, feedback: text || "Javobni tahlil qilishda muammo bo'ldi. Qayta urinib ko'ring!" };
     }
+    renderWriteFeedback(parsed, q, userCode, retryWrap, checkBtn);
+  }catch(err){
+    explainBox.innerHTML = "<b style='color:var(--danger);'>Xatolik: " + escHtml(err.message) + "</b> Internetni tekshirib, Sozlamalar bo'limida API kalitni kiriting.";
+    checkBtn.disabled = false;
+    checkBtn.textContent = "Javobni tekshirish";
   }
+}
 
   function renderWriteFeedback(parsed, q, userCode, retryWrap, checkBtn){
     answered = parsed.correct === true;
