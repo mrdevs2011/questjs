@@ -885,41 +885,34 @@ const WRITE_BANK = [
     nextBtn.disabled = false;
   }
 
-  async function callGroq(messages, options = {}){
-    const key = getGroqKey();
-    if(!key){
-      throw new Error("Groq API key kiritilmagan. Sozlamalar bo'limidan kalitni kiriting.");
-    }
-
-const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${key}`  // ✅ To'g'ri: backtick va key o'zgaruvchisi
-  },
-  body: JSON.stringify({
-    // ✅ Ishlaydigan modellardan birini tanlang:
-// callGroq funksiyasidagi model qismini shu bilan almashtiring:
-model: "llama-3.1-8b-instant"    // yoki
-    // model: "llama-3.1-8b-instant",  // Tezroq variant
-    // yoki
-    // model: "mixtral-8x7b-32768",    // Boshqa model
-    // yoki
-    // model: "gemma2-9b-it",          // Google modeli
-    messages,
-    max_tokens: options.max_tokens || 700,
-    temperature: 0.4
-  })
-});
-
-const data = await response.json();
-
-    if(!response.ok){
-      throw new Error(data.error?.message || "Groq API error");
-    }
-
-    return data.choices?.[0]?.message?.content || "";
+async function callGroq(messages, options = {}) {
+  const key = getGroqKey();
+  if (!key) {
+    throw new Error("Groq API key kiritilmagan. Sozlamalar bo'limidan kalitni kiriting.");
   }
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      model: options.model || "llama-3.1-8b-instant",  // ✅ To'g'ri
+      messages: messages,  // ✅ To'g'ri (yoki faqat messages)
+      max_tokens: options.max_tokens || 700,
+      temperature: options.temperature || 0.4
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Groq API error");
+  }
+
+  return data.choices?.[0]?.message?.content || "";
+}
 
 async function checkWrite(userCode, q, retryWrap, checkBtn){
   if(!userCode.trim()){ alert("Avval kodingizni yozing."); return; }
