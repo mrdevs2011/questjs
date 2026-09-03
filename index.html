@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS Bilim Testi — Javascript asoslari</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f14; --bg2:#0f1620; --panel:#121a24; --line:#1e2a37;
+    --text:#d7e1ea; --dim:#7c8fa3; --accent:#7ee787; --accent2:#58a6ff;
+    --danger:#ff6b6b; --gold:#f0b429;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:'Space Grotesk', system-ui, sans-serif; overflow:hidden; }
+  .mono{ font-family:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+
+  #app{ width:100%; margin:0; padding:0; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+  #app > header{ max-width:980px; width:100%; margin:0 auto; padding:20px 24px 0; flex-shrink:0; }
+  #app > #profilePanel{ max-width:980px; width:100%; margin:16px auto 0; flex-shrink:0; }
+  #app > header, #app > #profilePanel{ display:none; }
+  #app.on-home > header, #app.on-home > #profilePanel{ display:block; }
+
+  .view{ display:none; flex:1; min-height:0; }
+  .view.active{ display:flex; flex-direction:column; animation:viewIn .28s ease; }
+  #view-home.active{ overflow-y:auto; display:block; padding:20px 24px 40px; }
+  #view-tests.active{ overflow-y:auto; display:block; padding:20px 24px 40px; }
+  #view-home > *, #view-tests > *{ max-width:980px; margin-left:auto; margin-right:auto; }
+  #view-chat.active{ padding:20px 24px; height:100%; }
+  #view-settings.active{ overflow-y:auto; display:block; padding:20px 24px 40px; }
+  #view-settings > *{ max-width:980px; margin-left:auto; margin-right:auto; }
+
+  header{ text-align:center; margin-bottom:22px; }
+  header .badge{ display:inline-flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line);
+    padding:6px 14px; border-radius:999px; font-size:12.5px; color:var(--dim); margin-bottom:10px; }
+  header .badge .dot{ width:8px; height:8px; border-radius:2px; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  header h1{ font-size:24px; margin:6px 0; letter-spacing:-0.3px; }
+  header p{ color:var(--dim); font-size:13.5px; margin:0; }
+
+  .panel{ background:linear-gradient(180deg, var(--bg2), rgba(15,22,32,0.5)); border:1px solid var(--line);
+    border-radius:14px; padding:18px; margin-bottom:16px; }
+
+  .lesson-picker{ display:flex; flex-direction:column; gap:10px; }
+  .lesson-picker .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .lesson-picker label{ font-size:13px; color:var(--dim); min-width:150px; }
+  input[type=range]{ flex:1; min-width:140px; accent-color:var(--accent); }
+  input[type=number]{ width:64px; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:7px 8px; font-family:'JetBrains Mono', monospace; font-size:14px; text-align:center; }
+  .lesson-name{ font-family:'JetBrains Mono', monospace; color:var(--accent); font-size:13.5px; }
+  .lesson-list{ display:flex; flex-wrap:wrap; gap:6px; max-height:120px; overflow:auto; padding:4px 2px; }
+  .lesson-chip{ font-family:'JetBrains Mono', monospace; font-size:11.5px; padding:4px 8px; border-radius:6px;
+    background:rgba(126,231,135,0.08); color:var(--accent); border:1px solid rgba(126,231,135,0.2); }
+
+  .stat-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+  .stat{ flex:1; min-width:110px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat .n{ font-family:'JetBrains Mono', monospace; font-size:19px; color:var(--accent); }
+  .stat .l{ font-size:11.5px; color:var(--dim); }
+
+  button{ cursor:pointer; border:1px solid var(--line); background:var(--panel); color:var(--text);
+    padding:10px 18px; border-radius:10px; font-family:inherit; font-size:14px; font-weight:600;
+    transition:transform .08s ease, border-color .15s ease, background-color .15s ease, opacity .15s ease; }
+  button:hover{ border-color:var(--accent); }
+  button:active{ transform:scale(0.97); }
+  button.primary{ background:var(--accent); color:#08120c; border-color:var(--accent); width:100%; padding:13px; font-size:15px; }
+  button.ghost{ background:transparent; }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .qcard{ display:none; }
+  .qcard.active{ display:block; }
+  .qhead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .qhead .tag{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--accent2); background:rgba(88,166,255,0.1);
+    border:1px solid rgba(88,166,255,0.25); padding:3px 9px; border-radius:999px; }
+  .qhead .idx{ font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--dim); }
+  .qtext{ font-size:16px; line-height:1.55; margin:6px 0 16px; white-space:pre-wrap; }
+  .qtext-plain{ margin-bottom:10px; }
+  .code-editor{ background:#0d1117; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:10px 0 16px; }
+  .code-editor .title-bar{ display:flex; align-items:center; gap:6px; padding:8px 12px; background:#161b22; border-bottom:1px solid var(--line); }
+  .code-editor .title-bar span{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .code-editor .title-bar .r{ background:#ff5f56; } .code-editor .title-bar .y{ background:#ffbd2e; } .code-editor .title-bar .g{ background:#27c93f; }
+  .code-editor .title-bar .fname{ margin-left:8px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--dim); }
+  .code-editor .code-body{ padding:10px 0; overflow-x:auto; overflow-y:auto; max-height:340px; }
+  .code-editor .code-line{ display:flex; align-items:baseline; font-family:'JetBrains Mono', monospace; font-size:13.5px; line-height:1.7; white-space:pre; min-width:max-content; }
+  .code-editor .ln{ flex:0 0 auto; width:30px; text-align:right; margin-right:14px; padding-left:6px; color:#4b5768; user-select:none; position:sticky; left:0; background:#0d1117; }
+  .code-editor .lc{ flex:0 0 auto; padding-right:14px; color:#c9d1d9; }
+  .tok-kw{ color:#ff7b72; } .tok-str{ color:#a5d6ff; } .tok-num{ color:#79c0ff; } .tok-fn{ color:#d2a8ff; } .tok-com{ color:#8b949e; font-style:italic; }
+
+  .code-input-editor{ background:#0d1117; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:10px 0 6px; }
+  .code-input-editor .fname{ margin-left:8px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--dim); }
+  textarea.answer{ display:block; width:100%; min-height:130px; background:#0d1117; border:none; color:#c9d1d9;
+    padding:12px 16px; font-family:'JetBrains Mono', monospace; font-size:13.5px; line-height:1.7; resize:vertical; outline:none; }
+  textarea.answer::placeholder{ color:#4b5768; }
+
+  .opt{ display:block; width:100%; text-align:left; padding:12px 14px; margin-bottom:9px; border-radius:10px;
+    border:1px solid var(--line); background:var(--panel); color:var(--text); font-family:'JetBrains Mono', monospace;
+    font-size:13.5px; cursor:pointer; transition:border-color .15s ease, background .18s ease, transform .08s ease; }
+  .opt:active:not(.disabled){ transform:scale(0.99); }
+  .opt:hover{ border-color:var(--accent2); }
+  .opt.correct{ border-color:var(--accent); background:rgba(126,231,135,0.12); }
+  .opt.wrong{ border-color:var(--danger); background:rgba(255,107,107,0.12); }
+  .opt.disabled{ pointer-events:none; }
+
+  .explain{ display:none; margin-top:6px; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+    background:rgba(240,180,41,0.06); font-size:13.5px; color:var(--dim); line-height:1.5; }
+  .explain.show{ display:block; }
+  .explain b{ color:var(--gold); }
+  .explain pre{ background:rgba(0,0,0,0.35); padding:10px 12px; border-radius:8px; overflow:auto;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px; color:#c9f7d2; margin:8px 0 0; }
+
+  .code-block{ background:rgba(0,0,0,0.35); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    font-family:'JetBrains Mono', monospace; font-size:13.5px; color:#ffe1a8; white-space:pre-wrap; margin:8px 0 14px; overflow:auto; }
+  button.check{ margin-top:10px; }
+
+  .nav-row{ display:flex; justify-content:space-between; margin-top:16px; gap:10px; }
+
+  .result{ display:none; text-align:center; padding:10px 4px; }
+  .result.show{ display:block; }
+  .result .big{ font-family:'JetBrains Mono', monospace; font-size:42px; color:var(--accent); margin:6px 0; }
+  .result .sub{ color:var(--dim); font-size:14px; margin-bottom:18px; }
+  .weak-list{ text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:16px 0; }
+  .weak-list h4{ margin:0 0 8px; font-size:13.5px; color:var(--danger); }
+  .weak-list div{ font-size:13px; color:var(--dim); padding:4px 0; border-bottom:1px dashed var(--line); }
+  .weak-list div:last-child{ border-bottom:none; }
+
+  #testArea{ display:none; }
+  #testArea.show{ display:block; }
+  #setupArea.hide{ display:none; }
+
+  footer{ text-align:center; color:var(--dim); font-size:11.5px; margin-top:24px; font-family:'JetBrains Mono', monospace; }
+
+  .xp-bar-wrap{ background:var(--panel); border:1px solid var(--line); border-radius:999px; height:10px; overflow:hidden; margin-top:6px; }
+  .xp-bar{ height:100%; background:linear-gradient(90deg, var(--accent2), var(--accent)); width:0%; transition:width .4s ease; }
+  .level-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:2px; }
+  .level-badge{ font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--gold); background:rgba(240,180,41,0.1);
+    border:1px solid rgba(240,180,41,0.3); padding:3px 10px; border-radius:999px; }
+  .xp-num{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--dim); }
+  .streak-badge{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:#ff9d4d; background:rgba(255,157,77,0.1);
+    border:1px solid rgba(255,157,77,0.3); padding:3px 10px; border-radius:999px; }
+
+  .teacher-msg{ display:flex; gap:10px; align-items:flex-start; background:rgba(88,166,255,0.06); border:1px solid rgba(88,166,255,0.2);
+    border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:13.5px; line-height:1.5; }
+  .teacher-msg b{ color:var(--accent2); }
+  .avatar-mark{ flex-shrink:0; width:26px; height:26px; border-radius:8px; background:rgba(88,166,255,0.12); border:1px solid rgba(88,166,255,0.3);
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:700; color:var(--accent2); }
+
+  button.hint{ background:transparent; border:1px dashed var(--line); color:var(--dim); font-size:12.5px; padding:7px 12px; }
+  button.hint:hover{ border-color:var(--gold); color:var(--gold); }
+  .hint-box{ display:none; margin-top:10px; padding:10px 12px; border-radius:10px; border:1px dashed rgba(240,180,41,0.4);
+    background:rgba(240,180,41,0.05); font-size:13px; color:var(--gold); line-height:1.5; }
+  .hint-box.show{ display:block; }
+
+  .toast{ position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-20px); background:var(--panel);
+    border:1px solid var(--accent); color:var(--accent); padding:10px 18px; border-radius:999px; font-family:'JetBrains Mono', monospace;
+    font-size:13px; opacity:0; transition:opacity .3s ease, transform .3s ease; z-index:50; pointer-events:none; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .shell{ display:flex; height:100vh; width:100vw; overflow:hidden; }
+  .sidebar{ width:220px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--line);
+    padding:18px 12px; display:flex; flex-direction:column; gap:4px; height:100vh; }
+  .sidebar .brand{ display:flex; align-items:center; gap:9px; padding:6px 10px 18px; font-weight:700; font-size:15px; }
+  .sidebar .brand .ico{ font-size:20px; }
+  .nav-item{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:transparent;
+    border:1px solid transparent; color:var(--dim); padding:11px 12px; border-radius:10px; font-size:14px; font-weight:600;
+    transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  .nav-item .ico{ width:18px; height:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .nav-item:hover{ border-color:var(--line); color:var(--text); }
+  .nav-item.active{ background:rgba(126,231,135,0.1); border-color:rgba(126,231,135,0.3); color:var(--accent); }
+  .sidebar-foot{ margin-top:auto; padding:10px; font-size:11px; color:var(--dim); font-family:'JetBrains Mono', monospace; opacity:0.7; }
+
+  @keyframes viewIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+
+  *{ scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+  ::-webkit-scrollbar{ width:7px; height:7px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:999px; }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--accent2); }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  .advice-list{ display:flex; flex-direction:column; gap:9px; }
+  .advice-item{ padding:11px 13px; border-radius:10px; border-left:2px solid var(--accent2);
+    background:var(--panel); border-top:1px solid var(--line); border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+    font-size:13.5px; line-height:1.55; color:var(--text); transition:border-color .15s ease; }
+  .advice-item:hover{ border-left-color:var(--accent); }
+  .advice-item a{ color:var(--accent2); }
+  .cta-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .cta-row button{ flex:1; min-width:160px; }
+
+  .chat-shell{ display:flex; gap:0; height:100%; min-height:0; flex:1; position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:linear-gradient(180deg, var(--bg2), rgba(15,22,32,0.5)); }
+  .chat-wrap{ display:flex; flex-direction:column; flex:1; min-width:0; height:100%; padding:18px; }
+
+  .chat-sidebar{ width:230px; flex-shrink:0; border-right:1px solid var(--line); background:rgba(0,0,0,0.18);
+    display:flex; flex-direction:column; height:100%; transition:margin-left .2s ease; }
+  .chat-sidebar-head{ padding:12px 12px 8px; border-bottom:1px solid var(--line); }
+  .chat-new-btn{ width:100%; text-align:left; font-size:12.5px; padding:9px 10px; background:rgba(126,231,135,0.08);
+    border:1px solid rgba(126,231,135,0.25); color:var(--accent); border-radius:8px; }
+  .chat-new-btn:hover{ border-color:var(--accent); }
+  .chat-session-list{ flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:5px; }
+  .chat-session-item{ display:flex; align-items:center; gap:6px; padding:9px 10px; border-radius:8px; cursor:pointer;
+    border:1px solid transparent; transition:background .15s ease, border-color .15s ease; }
+  .chat-session-item:hover{ background:rgba(255,255,255,0.04); }
+  .chat-session-item.active{ background:rgba(88,166,255,0.1); border-color:rgba(88,166,255,0.3); }
+  .chat-session-title{ flex:1; min-width:0; font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; }
+  .chat-session-item.active .chat-session-title{ color:var(--accent2); }
+  .chat-session-del{ flex-shrink:0; background:transparent; border:none; color:var(--dim); font-size:14px;
+    padding:2px 5px; border-radius:5px; opacity:0; transition:opacity .15s ease; }
+  .chat-session-item:hover .chat-session-del{ opacity:1; }
+  .chat-session-del:hover{ color:var(--danger); border-color:transparent; }
+  .chat-session-empty{ color:var(--dim); font-size:12px; padding:10px; text-align:center; }
+
+  .chat-sidebar-toggle{ background:transparent; border:1px solid var(--line); color:var(--dim); font-size:12px;
+    padding:7px 10px; display:none; }
+  @media (max-width:640px){
+    .chat-sidebar-toggle{ display:inline-flex; align-items:center; gap:6px; }
+    .chat-sidebar{ position:absolute; left:0; top:0; bottom:0; z-index:20; margin-left:-230px;
+      box-shadow:8px 0 24px rgba(0,0,0,0.4); }
+    .chat-shell.sidebar-open .chat-sidebar{ margin-left:0; }
+    .chat-shell.sidebar-open::after{ content:''; position:absolute; inset:0; left:230px; background:rgba(0,0,0,0.4); z-index:10; }
+  }
+
+  .chat-log{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:4px 2px 12px; }
+  .msg{ max-width:82%; padding:11px 14px; border-radius:14px; font-size:13.5px; line-height:1.55; white-space:pre-wrap;
+    animation:msgIn .22s ease; }
+  .msg:has(.code-editor){ max-width:94%; }
+  .msg-text{ margin:0 0 8px; }
+  .msg-text:last-child{ margin-bottom:0; }
+  .msg .code-editor{ margin:8px 0; white-space:normal; }
+  .msg .code-editor:last-child{ margin-bottom:0; }
+  .inline-code{ font-family:'JetBrains Mono', monospace; font-size:12.5px; background:rgba(0,0,0,0.35);
+    color:#ffe1a8; padding:1px 6px; border-radius:5px; }
+  @keyframes msgIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+  .msg.teacher{ align-self:flex-start; background:rgba(88,166,255,0.08); border:1px solid rgba(88,166,255,0.2); border-bottom-left-radius:4px; }
+  .msg.me{ align-self:flex-end; background:rgba(126,231,135,0.1); border:1px solid rgba(126,231,135,0.25); border-bottom-right-radius:4px; color:var(--text); }
+  .msg.typing{ color:var(--dim); font-style:italic; }
+  .chat-input-row{ display:flex; gap:8px; border-top:1px solid var(--line); padding-top:12px; margin-top:6px; }
+  .chat-input-row textarea{ flex:1; resize:none; min-height:44px; max-height:120px; background:var(--panel);
+    border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px 12px; font-family:inherit; font-size:13.5px; outline:none; }
+  .chat-input-row textarea:focus{ border-color:var(--accent2); }
+  .chat-input-row button{ align-self:flex-end; padding:12px 16px; }
+
+  .mode-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; }
+  .mode-toggle{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:3px; }
+  .mode-btn{ border:1px solid transparent; background:transparent; color:var(--dim); font-size:12px; font-weight:600;
+    padding:6px 12px; border-radius:7px; transition:background .15s ease, color .15s ease; }
+  .mode-btn.active{ background:rgba(88,166,255,0.14); border-color:rgba(88,166,255,0.3); color:var(--accent2); }
+  .mode-btn[data-mode="code"].active{ background:rgba(126,231,135,0.12); border-color:rgba(126,231,135,0.3); color:var(--accent); }
+  .mode-hint{ font-size:11px; color:var(--dim); font-family:'JetBrains Mono', monospace; }
+
+  .code-input-box{ display:none; }
+  .code-input-box.active{ display:block; }
+  .chat-plain-box{ display:block; }
+  .chat-plain-box.hidden{ display:none; }
+
+  .code-compose{ position:relative; background:#0d1117; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .code-compose .title-bar{ display:flex; align-items:center; gap:6px; padding:8px 12px; background:#161b22; border-bottom:1px solid var(--line); }
+  .code-compose .title-bar span.r{ background:#ff5f56; } .code-compose .title-bar span.y{ background:#ffbd2e; } .code-compose .title-bar span.g{ background:#27c93f; }
+  .code-compose .title-bar span{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .code-compose .title-bar .fname{ margin-left:8px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--dim); }
+  .code-compose .cc-body{ position:relative; min-height:160px; max-height:340px; overflow-y:auto; }
+  .code-compose .cc-lines{ position:absolute; left:0; top:0; padding:12px 0; width:38px; text-align:right;
+    font-family:'JetBrains Mono', monospace; font-size:13.5px; line-height:1.7; color:#4b5768; user-select:none; }
+  .code-compose .cc-highlight{ position:absolute; left:46px; right:0; top:0; padding:12px 12px 12px 0;
+    font-family:'JetBrains Mono', monospace; font-size:13.5px; line-height:1.7; white-space:pre-wrap; word-break:break-word;
+    color:#c9d1d9; pointer-events:none; }
+  .code-compose textarea.cc-input{ position:relative; left:46px; width:calc(100% - 46px); min-height:160px;
+    background:transparent; border:none; color:transparent; caret-color:#c9f7d2; padding:12px 12px 12px 0;
+    font-family:'JetBrains Mono', monospace; font-size:13.5px; line-height:1.7; resize:vertical; outline:none; white-space:pre-wrap; word-break:break-word; }
+  .code-compose textarea.cc-input::placeholder{ color:#4b5768; }
+
+  @media (max-width: 720px){
+    .shell{ flex-direction:column; height:100vh; }
+    .sidebar{ position:fixed; bottom:0; left:0; right:0; top:auto; width:100%; height:auto;
+      flex-direction:row; justify-content:space-around; padding:8px; border-right:none; border-top:1px solid var(--line); z-index:40; }
+    .sidebar .brand{ display:none; }
+    .sidebar-foot{ display:none; }
+    .nav-item{ flex-direction:column; gap:3px; padding:6px 10px; font-size:10.5px; width:auto; flex:1; text-align:center; align-items:center; }
+    .nav-item .ico{ font-size:19px; }
+    #app{ height:calc(100vh - 62px); padding-bottom:0; }
+    #view-home.active, #view-tests.active{ padding:16px 16px 24px; }
+    #view-chat.active{ padding:10px 10px 10px; }
+  }
+
+  /* Settings view */
+  .settings-form{ display:flex; flex-direction:column; gap:16px; max-width:600px; }
+  .settings-form label{ font-size:13.5px; color:var(--dim); display:block; margin-bottom:6px; }
+  .settings-form input[type="text"], .settings-form input[type="password"]{
+    width:100%; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    border-radius:10px; padding:11px 12px; font-family:inherit; font-size:14px; outline:none; }
+  .settings-form input:focus{ border-color:var(--accent2); }
+  .settings-form .hint{ font-size:12px; color:var(--dim); margin-top:4px; }
+  .settings-form .row{ display:flex; gap:10px; align-items:center; }
+  .settings-form .row button{ width:auto; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="sidebar">
+    <div class="brand"><span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-5 6 5 6M16 6l5 6-5 6"/></svg>
+    </span><span>Quest Teacher</span></div>
+    <button class="nav-item active" data-view="home"><span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    </span><span>Home</span></button>
+    <button class="nav-item" data-view="chat"><span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/></svg>
+    </span><span>Chat</span></button>
+    <button class="nav-item" data-view="tests"><span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
+    </span><span>Tests</span></button>
+    <button class="nav-item" data-view="settings"><span class="ico">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    </span><span>Sozlamalar</span></button>
+    <div class="sidebar-foot">Progress shu qurilmada saqlanadi</div>
+  </nav>
+<div id="app" class="on-home">
+  <header>
+    <div class="badge"><span class="dot"></span> Ulugbek Samigjonov — "Javascript asoslari"</div>
+    <h1>JS Quest Teacher</h1>
+    <p>Shaxsiy AI-o'qituvchingiz — darsingizni belgilang, savol yeching, xato qilsangiz sodda tilda tushuntirib, qayta urinishga chaqiradi.</p>
+  </header>
+
+  <div class="panel" id="profilePanel">
+    <div class="level-row">
+      <span class="level-badge" id="levelBadge">Daraja 1</span>
+      <span class="streak-badge" id="streakBadge">0 ketma-ket to'g'ri</span>
+      <span class="xp-num" id="xpNum">0 / 100 XP</span>
+    </div>
+    <div class="xp-bar-wrap"><div class="xp-bar" id="xpBar"></div></div>
+  </div>
+
+  <div class="view active" id="view-home">
+    <div class="panel">
+      <div class="teacher-msg" id="homeTeacherMsg" style="margin-bottom:0;">
+        <div class="avatar-mark">T</div>
+        <div id="homeTeacherText">Salom, MR. Chap menyudan bo'limni tanla — <b>Tests</b>'da bilimingni sinab ko'r, <b>Chat</b>'da esa men bilan progressing haqida gaplashamiz.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 12px; font-size:14.5px;">Tavsiyalar</h3>
+      <div class="advice-list">
+        <div class="advice-item">Nazariyani <a href="https://javascript.info/" target="_blank" rel="noopener">javascript.info</a> yoki <a href="https://developer.mozilla.org/ru/docs/Web/JavaScript" target="_blank" rel="noopener">MDN</a> saytidan o'qib, shu yerda darhol test qilib ko'r — o'qib-tekshirib borish eng tez o'zlashtirish usuli.</div>
+        <div class="advice-item">Tizim xato ko'p qilgan darslaringni avtomatik aniqlab, keyingi testlarda o'sha savollarni ko'proq beradi — shuning uchun testni muntazam yechib borish eng samarali yo'l.</div>
+        <div class="advice-item">Tushunmagan joying bo'lsa — Chat bo'limiga o't, u senga savol beradi va nima uchun qiynalganingni birga aniqlaysizlar.</div>
+        <div class="advice-item">Har kuni ozgina bo'lsa ham amaliyot qil — ketma-ket streak'ingni uzmaslikka harakat qil, bu bilim mustahkam o'rnashishiga yordam beradi.</div>
+      </div>
+      <div class="cta-row">
+        <button class="primary" data-goto="tests">▶ Test yechishni boshlash</button>
+        <button data-goto="chat">O'qituvchi bilan gaplashish</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-chat">
+    <div class="chat-shell" id="chatShell">
+      <aside class="chat-sidebar" id="chatSidebar">
+        <div class="chat-sidebar-head">
+          <button type="button" class="chat-new-btn" id="chatNewBtn">+ Yangi suhbat</button>
+        </div>
+        <div class="chat-session-list" id="chatSessionList"></div>
+      </aside>
+      <div class="chat-wrap">
+        <div class="mode-row" style="margin-bottom:8px;">
+          <button type="button" class="chat-sidebar-toggle" id="chatSidebarToggle">☰ Suhbatlar</button>
+        </div>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="mode-row">
+          <div class="mode-toggle">
+            <button type="button" class="mode-btn active" data-mode="chat">Chat</button>
+            <button type="button" class="mode-btn" data-mode="code">Code</button>
+          </div>
+          <div class="mode-hint" id="modeHint">Enter — yuborish, Shift+Enter — yangi qator</div>
+        </div>
+        <div class="chat-plain-box" id="chatPlainBox">
+          <div class="chat-input-row">
+            <textarea id="chatInput" placeholder="Xabar yoz..." rows="1"></textarea>
+            <button class="primary" id="chatSendBtn" style="width:auto;">Yuborish</button>
+          </div>
+        </div>
+        <div class="code-input-box" id="codeInputBox">
+          <div class="code-compose">
+            <div class="title-bar"><span class="r"></span><span class="y"></span><span class="g"></span><span class="fname">javobim.js</span></div>
+            <div class="cc-body" id="ccBody">
+              <div class="cc-lines" id="ccLines">1</div>
+              <div class="cc-highlight" id="ccHighlight"></div>
+              <textarea id="codeInput" class="cc-input" placeholder="Kodingizni shu yerga yozing..." spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+            </div>
+          </div>
+          <div class="chat-input-row" style="border-top:none; padding-top:10px; margin-top:8px;">
+            <button class="primary" id="codeSendBtn" style="width:100%;">Kodni yuborish</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-tests">
+  <div id="setupArea">
+    <div class="panel lesson-picker">
+      <div class="row">
+        <label for="lessonNum">Hozirgi darsim raqami</label>
+        <input type="number" id="lessonNum" min="1" max="30" value="18">
+        <input type="range" id="lessonRange" min="1" max="30" value="18">
+      </div>
+      <div class="lesson-name" id="lessonName">18. if/else</div>
+      <div class="stat-row">
+        <div class="stat"><div class="n" id="availCount">0</div><div class="l">shu darsgacha savol soni</div></div>
+        <div class="stat"><div class="n" id="topicCount">18</div><div class="l">o'tilgan dars</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="margin-bottom:10px;">
+        <label style="min-width:auto;">Testdagi savollar soni</label>
+        <input type="number" id="qCount" min="5" max="60" value="20" style="width:70px;">
+      </div>
+      <button class="primary" id="startBtn">▶ Testni boshlash</button>
+    </div>
+  </div>
+
+  <div id="testArea">
+    <div class="panel">
+      <div class="qhead">
+        <span class="tag" id="qTag">Dars 1</span>
+        <span class="idx" id="qIdx">1 / 20</span>
+      </div>
+      <div class="qtext" id="qText"></div>
+      <div id="optsWrap"></div>
+      <button class="hint" id="hintBtn">Yordam so'rash</button>
+      <div class="hint-box" id="hintBox"></div>
+      <div class="explain" id="explainBox"></div>
+      <div class="nav-row">
+        <button class="ghost" id="quitBtn">To'xtatish</button>
+        <button class="primary" id="nextBtn" style="width:auto;" disabled>Keyingisi →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel result" id="resultArea">
+    <div class="sub">Natijangiz</div>
+    <div class="big" id="resultScore">0/0</div>
+    <div class="sub" id="resultPct"></div>
+    <div class="teacher-msg" id="finalTeacherMsg" style="display:none;">
+      <div class="avatar-mark">T</div>
+      <div><b>O'qituvchi xulosasi:</b> <span id="finalTeacherText">Tahlil qilinyapti...</span></div>
+    </div>
+    <div class="weak-list" id="weakList" style="display:none;">
+      <h4>Qaytadan ko'rib chiqish tavsiya etiladigan darslar</h4>
+      <div id="weakItems"></div>
+    </div>
+    <button class="primary" id="retryBtn">Yana test yechish</button>
+  </div>
+  </div>
+
+  <div class="view" id="view-settings">
+    <div class="panel">
+      <h2 style="margin:0 0 12px; font-size:18px;">Sozlamalar</h2>
+      <p style="margin:0 0 16px; color:var(--dim); font-size:13.5px;">Groq API kalitingizni kiriting. Bu kalit faqat brauzeringizda saqlanadi va hech qachon serverga yuborilmaydi.</p>
+      <div class="settings-form">
+        <div>
+          <label for="groqApiKey">Groq API Key</label>
+          <input type="password" id="groqApiKey" placeholder="gsk_..." autocomplete="off">
+          <div class="hint">API kalitni <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--accent2);">Groq Console</a> dan olishingiz mumkin.</div>
+        </div>
+        <div class="row">
+          <button class="primary" id="saveApiKeyBtn" style="width:auto;">Saqlash</button>
+          <button class="ghost" id="testApiBtn" style="width:auto;">Test qilish</button>
+        </div>
+        <div id="apiStatus" style="font-size:13px; color:var(--dim);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <footer>Progressingiz (daraja, XP, ketma-ketlik) shu qurilmada avtomatik saqlanadi</footer>
+</div>
+</div>
+
+<script>
+// Savollar bazasi
+const QUESTION_BANK = [
+{lesson:1, q:"JavaScript qaysi turdagi til hisoblanadi?", opts:["Faqat server tili","Skript (interpretatsiya qilinuvchi) til","Faqat ma'lumotlar bazasi tili","Operatsion tizim"], correct:1, exp:"JavaScript — brauzerda va serverda bajariladigan interpretatsiya qilinuvchi skript tili."},
+{lesson:1, q:"JavaScript dastlab qaysi maqsadda yaratilgan?", opts:["Veb-sahifalarga interaktivlik qo'shish","Operatsion tizim yaratish","Ma'lumotlar bazasini boshqarish","Rasm tahrirlash"], correct:0, exp:"JS veb-sahifalarni dinamik va interaktiv qilish uchun yaratilgan."},
+{lesson:2, q:"Zamonaviy JavaScript standarti qanday nomlanadi?", opts:["HTML5","ECMAScript (ES)","CSS3","JSON"], correct:1, exp:"JavaScript ECMAScript standartiga asoslanadi (ES5, ES6/ES2015 va h.k.)."},
+{lesson:2, q:"let va const kalit so'zlari qaysi versiyada kiritilgan?", opts:["ES3","ES5","ES6 (ES2015)","ES1"], correct:2, exp:"let, const, arrow function kabi imkoniyatlar ES6 (2015) bilan kirib keldi."},
+{lesson:3, q:'console.log("Salom" + "dunyo") natijasi?', opts:["Salom dunyo","Salomdunyo","Xato beradi","undefined"], correct:1, exp:"+ operatori satrlarni orasiga bo'sh joy qo'shmay birlashtiradi."},
+{lesson:3, q:"Brauzer konsolida natijani chiqarish uchun qaysi funksiya ishlatiladi?", opts:["print()","echo()","console.log()","display()"], correct:2, exp:"console.log() — brauzer konsoliga chiqarish uchun standart usul."},
+{lesson:4, q:"Qaysi biri o'zgaruvchi nomi sifatida NOTO'G'RI?", opts:["let yosh1","let 1yosh","let _yosh","let yosh_1"], correct:1, exp:"O'zgaruvchi nomi raqam bilan boshlana olmaydi."},
+{lesson:4, q:"let ism; console.log(ism); natija nima bo'ladi?", opts:["null","0","undefined","Xato beradi"], correct:2, exp:"Qiymat berilmagan o'zgaruvchi avtomatik ravishda undefined bo'ladi."},
+{lesson:5, q:"typeof 10 nechiga teng?", opts:['"number"','"int"','"string"','"NaN"'], correct:0, exp:"JSda barcha sonlar (butun va kasr) 'number' turiga kiradi."},
+{lesson:5, q:"typeof undefined va typeof null mos ravishda qanday?", opts:['"undefined" va "null"','"undefined" va "object"','"object" va "object"','"undefined" va "undefined"'], correct:1, exp:"typeof null tarixiy xatolik tufayli 'object' qaytaradi."},
+{lesson:6, q:"let, const va var orasidagi asosiy farq nima?", opts:["const qiymatini qayta belgilab bo'lmaydi, let/var esa bo'ladi","Ular hech qanday farq qilmaydi","var faqat sonlar uchun ishlatiladi","let global, const va var lokal bo'ladi"], correct:0, exp:"const o'zgarmas qiymat uchun, let/var qayta belgilashga ruxsat beradi."},
+{lesson:7, q:"let x = 10; x += 5; x *= 2; console.log(x); natija?", opts:["30","25","20","15"], correct:0, exp:"x=10+5=15, keyin 15*2=30."},
+{lesson:8, q:'let ism = "Ali"; console.log(ism.length); natija?', opts:["3","4","undefined","Xato beradi"], correct:0, exp:'"Ali" 3 ta belgidan iborat.'},
+{lesson:9, q:"console.log(true && false || true); natija?", opts:["true","false","undefined","Xato beradi"], correct:0, exp:"&& avval bajariladi: true&&false=false, keyin false||true=true."},
+{lesson:10, q:'Number("12abc") natijasi?', opts:["12","NaN","\"12abc\"","0"], correct:1, exp:"To'liq songa aylanmaydigan satr NaN qaytaradi."},
+{lesson:11, q:"Funksiyani to'g'ri e'lon qilish qaysi?", opts:['function salom() { return "Salom"; }','func salom() { return "Salom"; }','define salom() { return "Salom"; }','salom function() { return "Salom"; }'], correct:0, exp:"Funksiya 'function' kalit so'zi bilan e'lon qilinadi."},
+{lesson:12, q:"const kvadrat = (x) => x * x; console.log(kvadrat(4)); natija?", opts:["8","16","4","Xato beradi"], correct:1, exp:"4*4=16."},
+{lesson:14, q:"let arr = [10, 20, 30]; console.log(arr[1]); natija?", opts:["10","20","30","undefined"], correct:1, exp:"Indeks 0 dan boshlanadi, arr[1] — ikkinchi element (20)."},
+{lesson:15, q:"let arr=[1,2,3]; arr.push(4); console.log(arr.length); natija?", opts:["3","4","5","Xato"], correct:1, exp:"push() oxiriga element qo'shadi: [1,2,3,4] -> length 4."},
+{lesson:16, q:'let odam={ism:"Ali",yosh:20}; console.log(odam.yosh); natija?', opts:['"yosh"',"20","undefined","Xato beradi"], correct:1, exp:"Nuqta orqali murojaat kalitning qiymatini qaytaradi."},
+{lesson:17, q:"Object.keys({a:1,b:2,c:3}) nima qaytaradi?", opts:["[1,2,3]",'["a","b","c"]','{a:1,b:2,c:3}',"3"], correct:1, exp:"Object.keys() kalitlar ro'yxatini array qilib qaytaradi."},
+{lesson:18, q:'let yosh=15; if(yosh>=18){console.log("Katta");}else{console.log("Kichik");} natija?', opts:["Katta","Kichik","true","Hech narsa"], correct:1, exp:"15>=18 noto'g'ri, shuning uchun else bajariladi."},
+{lesson:19, q:"switch operatorida break yozilmasa nima bo'ladi?", opts:["Xato chiqadi","Keyingi case'lar ham bajariladi (fall-through)","Hech narsa o'zgarmaydi","switch to'xtaydi"], correct:1, exp:"break bo'lmasa, kod keyingi case'larga 'tushib' davom etadi."},
+{lesson:20, q:"for(let i=0;i<3;i++){console.log(i);} nechta marta va qaysi qiymatlar chiqadi?", opts:["0,1,2","1,2,3","0,1,2,3","3 marta, faqat 3"], correct:0, exp:"i 0 dan boshlanib, 3 dan kichik bo'lguncha davom etadi: 0,1,2."},
+{lesson:21, q:"while va for orasidagi asosiy farq nima?", opts:["while shart true bo'lguncha ishlaydi, tuzilishi soddaroq","while faqat massivlar uchun","for hech qachon to'xtamaydi","Farqi yo'q, ikkalasi bir xil"], correct:0, exp:"while faqat shartni tekshiradi, for esa boshlang'ich/shart/qadam uchtasini o'z ichiga oladi."},
+{lesson:22, q:"Siklni majburiy to'xtatish uchun qaysi kalit so'z ishlatiladi?", opts:["stop","break","end","exit"], correct:1, exp:"break sikldan darhol chiqadi."},
+{lesson:23, q:"DOM nimani anglatadi?", opts:["Document Object Model","Data Object Management","Digital Output Method","Document Order Map"], correct:0, exp:"DOM — HTML hujjatning obyekt sifatidagi modeli."},
+{lesson:24, q:"id bo'yicha elementni tanlash uchun qaysi metod ishlatiladi?", opts:["document.getElementById()","document.getClass()","document.selectId()","document.findId()"], correct:0, exp:"getElementById() id orqali bitta elementni topadi."},
+{lesson:25, q:"Elementning matnini o'zgartirish uchun qaysi xususiyat ishlatiladi?", opts:["element.text","element.textContent","element.value","element.string"], correct:1, exp:"textContent element ichidagi matnni o'qish/o'zgartirish uchun ishlatiladi."},
+{lesson:26, q:"Yangi element yaratish uchun qaysi metod ishlatiladi?", opts:["document.createElement()","document.newElement()","document.makeElement()","document.addElement()"], correct:0, exp:"createElement() yangi HTML element obyektini yaratadi."},
+{lesson:27, q:"Elementga bosilganda funksiya ishga tushishi uchun qaysi kod to'g'ri?", opts:["element.addEvent('click', fn)","element.addEventListener('click', fn)","element.onEvent('click', fn)","element.click(fn)"], correct:1, exp:"addEventListener() hodisa (event) tinglovchisini qo'shadi."},
+{lesson:28, q:"Sahifa to'liq yuklanganini aniqlash uchun qaysi hodisa ishlatiladi?", opts:["load","click","change","submit"], correct:0, exp:"load hodisasi sahifa (yoki resurs) to'liq yuklanganda ishga tushadi."},
+{lesson:29, q:"Formani yuborishning oldini olish uchun qaysi metod chaqiriladi?", opts:["event.stop()","event.preventDefault()","event.cancel()","event.block()"], correct:1, exp:"preventDefault() brauzerning standart harakatini (masalan, forma yuborish) to'xtatadi."},
+{lesson:30, q:"Kursni yakunlagandan so'ng keyingi mantiqiy qadam nima bo'lishi mumkin?", opts:["To'xtab qolish","Amaliy loyihalar qilish va DOM/funksiyalarni mustahkamlash","JSni butunlay unutish","Faqat nazariya o'qishda davom etish"], correct:1, exp:"Bilimni mustahkamlashning eng yaxshi yo'li — amaliy kichik loyihalar qilish."},
+];
+
+const WRITE_BANK = [
+{lesson:4, task:"ism va yosh nomli ikkita o'zgaruvchi e'lon qiling (o'zingiznikini yozing) va ularni console.log orqali chiqaring.", sample:'let ism = "Ali";\nlet yosh = 20;\nconsole.log(ism);\nconsole.log(yosh);', exp:"O'zgaruvchi let bilan e'lon qilinadi, teng belgisi orqali qiymat beriladi, satrlar tirnoqda yoziladi."},
+{lesson:6, task:"const yordamida PI degan o'zgaruvchi yarating (qiymati 3.14) va uni o'zgartirishga urinib ko'ring — nima uchun xato berishini bir gap bilan yozing.", sample:'const PI = 3.14;\n// PI = 3.15; // Xato beradi, chunki const qayta yozib bo\'lmaydi', exp:"const bilan e'lon qilingan qiymat dasturning davomida o'zgartirilmaydi."},
+{lesson:7, task:"Ikkita son (a=8, b=3) ustida qo'shish, ayirish, ko'paytirish va qoldiq topish amallarini bajarib, natijalarni chiqaring.", sample:'let a = 8, b = 3;\nconsole.log(a+b); // 11\nconsole.log(a-b); // 5\nconsole.log(a*b); // 24\nconsole.log(a%b); // 2', exp:"+, -, *, % — asosiy arifmetik operatorlar."},
+{lesson:8, task:"ism o'zgaruvchisiga o'z ismingizni yozing va uni katta harflarga o'tkazib chiqaring.", sample:'let ism = "Ali";\nconsole.log(ism.toUpperCase());', exp:"toUpperCase() satrni katta harflarga o'tkazadi."},
+{lesson:9, task:"yosh o'zgaruvchisi 20 bo'lsin. yosh 18 dan katta VA 65 dan kichik ekanligini tekshiruvchi mantiqiy ifodani yozib, natijasini chiqaring.", sample:'let yosh = 20;\nconsole.log(yosh > 18 && yosh < 65); // true', exp:"&& ikkala shart ham to'g'ri bo'lgandagina true qaytaradi."},
+{lesson:11, task:"ikkita sonni qo'shadigan qoshish nomli funksiya yozing va uni 5 va 7 bilan chaqirib natijani chiqaring.", sample:'function qoshish(a, b) {\n  return a + b;\n}\nconsole.log(qoshish(5, 7)); // 12', exp:"function kalit so'zi, parametrlar va return orqali funksiya yaratiladi."},
+{lesson:12, task:"kub nomli arrow function yozing, u sonni kubga oshirsin (x*x*x), va uni 3 bilan sinab ko'ring.", sample:'const kub = (x) => x * x * x;\nconsole.log(kub(3)); // 27', exp:"Arrow function qisqa yozuvda: (parametr) => ifoda."},
+{lesson:14, task:"3 ta mevaning nomi bilan array yarating va uni to'liq console.log qiling.", sample:'let mevalar = ["olma", "banan", "uzum"];\nconsole.log(mevalar);', exp:"Array kvadrat qavs [] ichida, vergul bilan ajratilgan elementlardan iborat."},
+{lesson:15, task:"[1,2,3,4,5] arrayidan faqat juft sonlarni ajratib oling (filter yordamida).", sample:'let sonlar = [1,2,3,4,5];\nlet juftlar = sonlar.filter(x => x % 2 === 0);\nconsole.log(juftlar); // [2, 4]', exp:"filter() shartga (x % 2 === 0) mos elementlarni tanlab, yangi array qaytaradi."},
+{lesson:16, task:"kitob nomli object yarating: nomi, muallifi va sahifalar_soni xususiyatlari bilan, so'ng uni chiqaring.", sample:'let kitob = {\n  nomi: "O\'tkan kunlar",\n  muallifi: "Abdulla Qodiriy",\n  sahifalar_soni: 400\n};\nconsole.log(kitob);', exp:"Object {} ichida kalit:qiymat juftliklari bilan yoziladi."},
+{lesson:18, task:"son nomli o'zgaruvchi qiymati 7 bo'lsin. Agar u 10 dan katta bo'lsa \"Katta\", aks holda \"Kichik\" deb chiqaradigan if/else yozing.", sample:'let son = 7;\nif (son > 10) {\n  console.log("Katta");\n} else {\n  console.log("Kichik");\n}', exp:"if shartni tekshiradi, false bo'lsa else blokiga o'tadi."},
+{lesson:20, task:"1 dan 5 gacha sonlarni for sikli yordamida konsolga chiqaring.", sample:'for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}', exp:"for(boshlang'ich; shart; qadam) sonlarni ketma-ket chop etadi."},
+{lesson:21, task:"while sikli yordamida 5 dan 1 gacha kamayib boradigan sonlarni chiqaring.", sample:'let i = 5;\nwhile (i >= 1) {\n  console.log(i);\n  i--;\n}', exp:"while shart true bo'lguncha ishlaydi, i-- bilan qiymat kamaytiriladi."},
+{lesson:24, task:"id='title' bo'lgan elementni tanlab, uni h1 nomli o'zgaruvchiga saqlang.", sample:"let h1 = document.getElementById('title');", exp:"getElementById() id orqali bitta elementni topib qaytaradi."},
+{lesson:26, task:"Yangi <p> elementi yarating, ichiga matn qo'shing va uni document.body ichiga qo'shing.", sample:"let p = document.createElement('p');\np.textContent = \"Salom!\";\ndocument.body.appendChild(p);", exp:"createElement bilan yaratilib, appendChild bilan sahifaga qo'shiladi."},
+{lesson:27, task:"id='btn' bo'lgan tugmaga bosilganda konsolga \"Bosildi!\" deb chiqaradigan hodisa (event) yozing.", sample:"document.getElementById('btn').addEventListener('click', function() {\n  console.log(\"Bosildi!\");\n});", exp:"addEventListener('click', fn) tugma bosilganda funksiyani ishga tushiradi."},
+];
+</script>
+<script>
+(function(){
+  "use strict";
+  const LESSON_TITLES = {
+    1:"Kirish",2:"Javascript va uning versiyalari",3:"Salom dunyo!",4:"Qiymatlar va o'zgaruvchilar",
+    5:"Ma'lumot turlari",6:"let, const va var",7:"Asosiy operatorlar",8:"String",
+    9:"Mantiqiy operatorlar",10:"Turni (type) o'zgartirish",11:"Funksiya va uni e'lon qilish",
+    12:"Function expression va arrow function",13:"Funksiyalar bo'yicha amaliyot",14:"Array",
+    15:"Array methods",16:"Objects",17:"Object methods",18:"if/else",19:"switch",20:"for",
+    21:"while",22:"Oqim boshqaruvi bo'yicha amaliyot",23:"DOM",24:"Elementlarni tanlab olish",
+    25:"Elementlarni o'zgartirish",26:"Elementlarni qo'shish va o'chirish",27:"Hodisalar (events)",
+    28:"Ko'p uchraydigan hodisalar",29:"DOM bo'yicha amaliyot",30:"Kurs yakuni"
+  };
+
+  // ================= Groq API Key =================
+  const GROQ_KEY = 'groq-api-key';
+  function getGroqKey(){ return localStorage.getItem(GROQ_KEY) || ''; }
+  function setGroqKey(key){ localStorage.setItem(GROQ_KEY, key); }
+
+  // ================= localStorage wrapper =================
+  const storage = {
+    async get(key){
+      const value = localStorage.getItem(key);
+      if(value === null) return null;
+      return { key, value };
+    },
+    async set(key, value){
+      localStorage.setItem(key, value);
+      return { key, value };
+    },
+    async delete(key){
+      localStorage.removeItem(key);
+    }
+  };
+
+  // ================= Student profile =================
+  const STUDENT_PROFILE_KEY = 'quest-student-profile';
+  let studentProfile = { onboarded:false, facts:{}, lastSeenAt:null };
+
+  async function loadStudentProfile(){
+    try{
+      const res = await storage.get(STUDENT_PROFILE_KEY);
+      if(res && res.value){
+        const saved = JSON.parse(res.value);
+        studentProfile = Object.assign(studentProfile, saved);
+      }
+    }catch(e){}
+  }
+  async function saveStudentProfile(){
+    try{ await storage.set(STUDENT_PROFILE_KEY, JSON.stringify(studentProfile)); }
+    catch(e){}
+  }
+  function studentFactsSummary(){
+    const entries = Object.entries(studentProfile.facts || {});
+    if(!entries.length) return null;
+    return entries.map(([k,v])=> `${k}: ${v}`).join('; ');
+  }
+
+  // ================= Profile / XP =================
+  const PROFILE_KEY = 'quest-profile';
+  let profile = { xp:0, level:1, streak:0, bestStreak:0, history:{} };
+
+  function xpForLevel(lvl){ return lvl*100; }
+
+  async function loadProfile(){
+    try{
+      const res = await storage.get(PROFILE_KEY);
+      if(res && res.value){
+        const saved = JSON.parse(res.value);
+        profile = Object.assign(profile, saved);
+      }
+    }catch(e){}
+    renderProfile();
+  }
+  async function saveProfile(){
+    try{ await storage.set(PROFILE_KEY, JSON.stringify(profile)); }
+    catch(e){}
+  }
+  function renderProfile(){
+    const need = xpForLevel(profile.level);
+    document.getElementById('levelBadge').textContent = "Daraja " + profile.level;
+    document.getElementById('xpNum').textContent = profile.xp + " / " + need + " XP";
+    document.getElementById('xpBar').style.width = Math.min(100, Math.round((profile.xp/need)*100)) + "%";
+    document.getElementById('streakBadge').textContent = "Ketma-ket: " + profile.streak + " ketma-ket to'g'ri";
+  }
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+  function addXp(amount, lesson, wasCorrect){
+    profile.history[lesson] = profile.history[lesson] || {wrong:0, right:0};
+    if(wasCorrect){
+      profile.history[lesson].right++;
+      profile.streak++;
+      profile.bestStreak = Math.max(profile.bestStreak, profile.streak);
+    } else {
+      profile.history[lesson].wrong++;
+      profile.streak = 0;
+    }
+    profile.xp += amount;
+    let leveledUp = false;
+    while(profile.xp >= xpForLevel(profile.level)){
+      profile.xp -= xpForLevel(profile.level);
+      profile.level++;
+      leveledUp = true;
+    }
+    renderProfile();
+    saveProfile();
+    if(leveledUp) showToast("Tabriklaymiz! Daraja " + profile.level + " ga chiqdingiz!");
+    else if(wasCorrect) showToast("+" + amount + " XP");
+  }
+
+  const lessonNum = document.getElementById('lessonNum');
+  const lessonRange = document.getElementById('lessonRange');
+  const lessonName = document.getElementById('lessonName');
+  const availCount = document.getElementById('availCount');
+  const topicCount = document.getElementById('topicCount');
+  const qCountInput = document.getElementById('qCount');
+  const startBtn = document.getElementById('startBtn');
+  const setupArea = document.getElementById('setupArea');
+  const testArea = document.getElementById('testArea');
+  const resultArea = document.getElementById('resultArea');
+
+  function availableQuestions(lesson){
+    const mcq = QUESTION_BANK.filter(q => q.lesson <= lesson).map(q => Object.assign({type:'mcq'}, q));
+    const write = WRITE_BANK.filter(q => q.lesson <= lesson).map(q => Object.assign({type:'write'}, q));
+    return mcq.concat(write);
+  }
+  function syncSetup(v){
+    v = Math.max(1, Math.min(30, parseInt(v)||1));
+    lessonNum.value = v; lessonRange.value = v;
+    lessonName.textContent = v + ". " + LESSON_TITLES[v];
+    topicCount.textContent = v;
+    availCount.textContent = availableQuestions(v).length;
+    qCountInput.max = Math.max(5, availableQuestions(v).length);
+    if(parseInt(qCountInput.value) > availableQuestions(v).length){
+      qCountInput.value = availableQuestions(v).length;
+    }
+    return v;
+  }
+  let currentLesson = syncSetup(18);
+  lessonNum.addEventListener('input', ()=> currentLesson = syncSetup(lessonNum.value));
+  lessonRange.addEventListener('input', ()=> currentLesson = syncSetup(lessonRange.value));
+  loadProfile();
+  loadStudentProfile();
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function lessonWeight(lesson){
+    const h = profile.history[lesson];
+    if(!h) return 1;
+    const total = h.wrong + h.right;
+    if(total === 0) return 1;
+    const errorRate = h.wrong / total;
+    return 1 + errorRate * 3;
+  }
+  function weightedSample(pool, n){
+    if(n >= pool.length) return shuffle(pool);
+    const ranked = pool
+      .map(q => ({ q, key: Math.pow(Math.random(), 1 / lessonWeight(q.lesson)) }))
+      .sort((a,b) => b.key - a.key);
+    return ranked.slice(0, n).map(r => r.q);
+  }
+
+  let testQuestions = [];
+  let qi = 0;
+  let correctCount = 0;
+  let wrongByLesson = {};
+  let answered = false;
+
+  const qTag = document.getElementById('qTag');
+  const qIdx = document.getElementById('qIdx');
+  const qText = document.getElementById('qText');
+  const optsWrap = document.getElementById('optsWrap');
+  const explainBox = document.getElementById('explainBox');
+  const nextBtn = document.getElementById('nextBtn');
+  const quitBtn = document.getElementById('quitBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const hintBox = document.getElementById('hintBox');
+
+  function startTest(){
+    const pool = availableQuestions(currentLesson);
+    const mcqPool = pool.filter(q=>q.type==='mcq');
+    const writePool = pool.filter(q=>q.type==='write');
+    const n = Math.min(parseInt(qCountInput.value)||20, pool.length);
+    const writeTarget = Math.min(writePool.length, Math.max(1, Math.round(n/4)));
+    const chosenWrite = weightedSample(writePool, writeTarget);
+    const chosenMcq = weightedSample(mcqPool, n - chosenWrite.length);
+    testQuestions = shuffle(chosenMcq.concat(chosenWrite));
+    qi = 0; correctCount = 0; wrongByLesson = {};
+    setupArea.classList.add('hide');
+    resultArea.classList.remove('show');
+    testArea.classList.add('show');
+    renderQuestion();
+  }
+
+  function renderQuestion(){
+    answered = false;
+    const q = testQuestions[qi];
+    qTag.textContent = "Dars " + q.lesson + " — " + LESSON_TITLES[q.lesson] + (q.type==='write' ? " · Kod yozish" : "");
+    qIdx.textContent = (qi+1) + " / " + testQuestions.length;
+    explainBox.classList.remove('show');
+    explainBox.innerHTML = "";
+    nextBtn.disabled = true;
+    nextBtn.textContent = (qi === testQuestions.length-1) ? "Natijani ko'rish →" : "Keyingisi →";
+    optsWrap.innerHTML = "";
+    hintBox.classList.remove('show');
+    hintBox.innerHTML = "";
+    hintBtn.disabled = false;
+    hintBtn.textContent = "Yordam so'rash";
+
+    if(q.type === 'write'){
+      qText.textContent = q.task;
+      const editorWrap = document.createElement('div');
+      editorWrap.className = 'code-input-editor';
+      editorWrap.innerHTML = '<div class="title-bar"><span class="r"></span><span class="y"></span><span class="g"></span><span class="fname">javobim.js</span></div>';
+      const ta = document.createElement('textarea');
+      ta.className = 'answer';
+      ta.placeholder = "Kodingizni shu yerga yozing...";
+      ta.autocomplete = 'off';
+      ta.autocapitalize = 'off';
+      ta.spellcheck = false;
+      editorWrap.appendChild(ta);
+      optsWrap.appendChild(editorWrap);
+      const checkBtn = document.createElement('button');
+      checkBtn.className = 'check';
+      checkBtn.textContent = "Javobni tekshirish";
+      checkBtn.addEventListener('click', ()=> checkWrite(ta.value, q, null, checkBtn));
+      optsWrap.appendChild(checkBtn);
+      nextBtn.disabled = true;
+    } else {
+      renderQuestionText(q.q);
+      const order = q.opts.map((t,i)=>({t,i}));
+      order.forEach(o=>{
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.textContent = o.t;
+        btn.addEventListener('click', ()=> selectOption(btn, o.i, q));
+        optsWrap.appendChild(btn);
+      });
+    }
+  }
+
+  function renderQuestionText(text){
+    qText.innerHTML = "";
+    const splitMatch = text.match(/^([\s\S]*?)\s*(natija(?:si)? (?:nima|qanday)[\s\S]*)$/i);
+    let codePart, questionPart;
+    if(splitMatch){
+      codePart = splitMatch[1].trim();
+      questionPart = splitMatch[2].trim();
+    } else {
+      codePart = null;
+      questionPart = text;
+    }
+
+    if(codePart && /[;{}()]/.test(codePart)){
+      qText.appendChild(buildCodeEditor(codePart));
+      const p = document.createElement('div');
+      p.className = 'qtext-plain';
+      p.textContent = questionPart;
+      qText.appendChild(p);
+    } else {
+      const p = document.createElement('div');
+      p.className = 'qtext-plain';
+      p.textContent = text;
+      qText.appendChild(p);
+    }
+  }
+
+  function escHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function highlightJS(code){
+    const KEYWORDS = /^(let|const|var|function|return|if|else|for|while|do|switch|case|break|continue|typeof|new|class|true|false|null|undefined|of|in|this|=>)$/;
+    const TOKEN_RE = /(["'`])(?:\\.|(?!\1).)*\1|\/\/.*$|\b\d+(?:\.\d+)?\b|[a-zA-Z_$][\w$]*|[\s\S]/gm;
+    let out = '';
+    let m;
+    TOKEN_RE.lastIndex = 0;
+    while((m = TOKEN_RE.exec(code))){
+      const tok = m[0];
+      if(/^["'`]/.test(tok)){
+        out += '<span class="tok-str">' + escHtml(tok) + '</span>';
+      } else if(/^\/\//.test(tok)){
+        out += '<span class="tok-com">' + escHtml(tok) + '</span>';
+      } else if(/^\d/.test(tok)){
+        out += '<span class="tok-num">' + escHtml(tok) + '</span>';
+      } else if(/^[a-zA-Z_$]/.test(tok)){
+        if(KEYWORDS.test(tok)){
+          out += '<span class="tok-kw">' + escHtml(tok) + '</span>';
+        } else {
+          const nextChar = code[m.index + tok.length];
+          out += nextChar === '(' ? '<span class="tok-fn">' + escHtml(tok) + '</span>' : escHtml(tok);
+        }
+      } else {
+        out += escHtml(tok);
+      }
+      if(TOKEN_RE.lastIndex === m.index) TOKEN_RE.lastIndex++;
+    }
+    return out;
+  }
+
+  function buildCodeEditor(code){
+    let formatted = code
+      .replace(/\{\s*/g, ' {\n  ')
+      .replace(/;\s*(?!\s*$)/g, ';\n')
+      .replace(/\}\s*/g, '\n}')
+      .split('\n').map(l=>l.trim()).filter(l=>l.length).join('\n');
+    if(!formatted.includes('\n')) formatted = code;
+
+    const lines = formatted.split('\n');
+    const wrap = document.createElement('div');
+    wrap.className = 'code-editor';
+    const linesHtml = lines.map((l,i)=>
+      `<div class="code-line"><span class="ln">${i+1}</span><span class="lc">${highlightJS(l)}</span></div>`
+    ).join('');
+    wrap.innerHTML =
+      '<div class="title-bar"><span class="r"></span><span class="y"></span><span class="g"></span><span class="fname">script.js</span></div>' +
+      '<div class="code-body">' + linesHtml + '</div>';
+    return wrap;
+  }
+
+  function selectOption(btn, idx, q){
+    if(answered) return;
+    answered = true;
+    const allBtns = optsWrap.querySelectorAll('.opt');
+    allBtns.forEach(b=>b.classList.add('disabled'));
+    const isCorrect = idx === q.correct;
+    if(isCorrect){
+      btn.classList.add('correct');
+      correctCount++;
+      addXp(10, q.lesson, true);
+    } else {
+      btn.classList.add('wrong');
+      allBtns[q.correct].classList.add('correct');
+      wrongByLesson[q.lesson] = (wrongByLesson[q.lesson]||0) + 1;
+      addXp(2, q.lesson, false);
+    }
+    explainBox.innerHTML = "<b>" + (isCorrect ? "To'g'ri! " : "Noto'g'ri. ") + "</b>" + q.exp;
+    explainBox.classList.add('show');
+    nextBtn.disabled = false;
+  }
+
+  async function callGroq(messages, options = {}){
+    const key = getGroqKey();
+    if(!key){
+      throw new Error("Groq API key kiritilmagan. Sozlamalar bo'limidan kalitni kiriting.");
+    }
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages,
+        max_tokens: options.max_tokens || 700,
+        temperature: 0.4
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error?.message || "Groq API error");
+    }
+
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  async function checkWrite(userCode, q, retryWrap, checkBtn){
+    if(!userCode.trim()){
+      alert("Avval kodingizni yozing.");
+      return;
+    }
+    checkBtn.disabled = true;
+    checkBtn.textContent = "Tekshirilyapti...";
+    explainBox.classList.add('show');
+    explainBox.innerHTML = "<span class='mono' style='color:var(--dim);'>AI kodingizni tekshiryapti...</span>";
+
+    const prompt = `Sen qat'iy, talabchan, lekin adolatli JavaScript o'qituvchisan. O'quvchiga har doim "sen" deb murojaat qilasan (sizlab emas). O'quvchi quyidagi topshiriqni bajarishga harakat qildi.
+
+TOPSHIRIQ: ${q.task}
+
+NAMUNAVIY TO'G'RI YECHIM (faqat sen uchun mo'ljal, o'quvchiga aynan shu holida ko'rsatma):
+${q.sample}
+
+O'QUVCHINING JAVOBI:
+${userCode}
+
+Vazifang:
+1. O'quvchining kodi to'g'ri ishlaydimi yoki yo'qmi aniqla (mantiqiy jihatdan, aynan bir xil yozilishi shart emas).
+2. Agar TO'G'RI bo'lsa: qisqa tan olib, keyingisiga o'tishga undab qo'y — ortiqcha maqtama, professional bo'l.
+3. Agar XATO yoki sintaksis xatosi bo'lsa: to'g'ridan-to'g'ri, aniq va qat'iy tilda qayerda xato ekanini ko'rsat. Kamsitma, haqorat qilma, lekin yumshatib ham o'tirma — xatoni aniq atab, "diqqatliroq bo'l" yoki shunga o'xshash qat'iy ohangda ayt, va oxirida albatta "Qayta urinib ko'r!" deb yoz.
+4. Javobingni o'zbek tilida, qisqa (3-5 gapdan oshmasin), qat'iy va professional ohangda, "sen" deb murojaat qilib yoz. Markdown belgilar (**, #) ishlatma, oddiy matn yoz.
+5. Javobingni FAQAT quyidagi JSON formatida qaytar, boshqa hech narsa yozma:
+{"correct": true yoki false, "feedback": "javobing shu yerda"}`;
+
+    try{
+      const text = await callGroq(
+        [
+          { role: "user", content: prompt }
+        ],
+        { max_tokens: 1000 }
+      );
+
+      let parsed;
+      try{
+        const clean = text.replace(/```json|```/g,'').trim();
+        parsed = JSON.parse(clean);
+      }catch(e){
+        parsed = { correct:false, feedback: text || "Javobni tahlil qilishda muammo bo'ldi. Qayta urinib ko'ring!" };
+      }
+
+      renderWriteFeedback(parsed, q, userCode, retryWrap, checkBtn);
+    }catch(err){
+      explainBox.innerHTML = "<b style='color:var(--danger);'>Xatolik: " + escHtml(err.message) + "</b> Internetni tekshirib, Sozlamalar bo'limida API kalitni kiriting.";
+      checkBtn.disabled = false;
+      checkBtn.textContent = "Javobni tekshirish";
+    }
+  }
+
+  function renderWriteFeedback(parsed, q, userCode, retryWrap, checkBtn){
+    answered = parsed.correct === true;
+    if(parsed.correct){
+      correctCount++;
+      addXp(20, q.lesson, true);
+      explainBox.innerHTML = "<b style='color:var(--accent);'>To'g'ri! </b>" + escapeHtml(parsed.feedback) +
+        "<pre>" + escapeHtml(q.sample) + "</pre>";
+      nextBtn.disabled = false;
+      checkBtn.style.display = 'none';
+    } else {
+      wrongByLesson[q.lesson] = (wrongByLesson[q.lesson]||0) + 1;
+      addXp(3, q.lesson, false);
+      explainBox.innerHTML = "<b style='color:var(--danger);'>Hali to'liq to'g'ri emas. </b>" + escapeHtml(parsed.feedback);
+      checkBtn.disabled = false;
+      checkBtn.textContent = "Qayta urinib ko'rish";
+      nextBtn.disabled = false;
+    }
+  }
+
+  function escapeHtml(s){
+    return (s||"").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+
+  hintBtn.addEventListener('click', async ()=>{
+    const q = testQuestions[qi];
+    hintBtn.disabled = true;
+    hintBtn.textContent = "O'ylanyapti...";
+    hintBox.classList.add('show');
+    hintBox.innerHTML = "AI maslahat tayyorlayapti...";
+
+    const qDesc = q.type === 'write' ? q.task : (q.q + "\nVariantlar: " + q.opts.join(" | "));
+    const prompt = `Sen qat'iy, talabchan JavaScript o'qituvchisan, o'quvchiga "sen" deb murojaat qilasan. O'quvchi quyidagi savolda qiynalyapti va javobni bermay, faqat YO'NALISH beruvchi kichik maslahat so'rayapti.
+
+SAVOL: ${qDesc}
+
+Vazifang: to'g'ri javobni AYTMASDAN, o'quvchini to'g'ri fikrlash yo'liga solib qo'yadigan 1-2 gaplik kichik maslahat ber. Ohangda erkalatma — qisqa, aniq va jiddiy bo'l, masalan "yaxshilab o'yla" yoki "buni allaqachon bilishing kerak edi" kabi qat'iy urg'u bilan, lekin haqoratsiz. Tushunarli o'zbek tilida yoz. Markdown ishlatma, oddiy matn yoz. Faqat maslahat matnini qaytar, boshqa hech narsa yozma.`;
+
+    try{
+      const text = await callGroq(
+        [
+          { role: "user", content: prompt }
+        ],
+        { max_tokens: 300 }
+      );
+
+      hintBox.innerHTML = escapeHtml(text || "Hozircha maslahat topilmadi, savolni yana bir bor diqqat bilan o'qib ko'ring.");
+    }catch(e){
+      hintBox.innerHTML = "Xatolik: " + escHtml(e.message);
+    }
+    hintBtn.textContent = "Yana yordam so'rash";
+    hintBtn.disabled = false;
+  });
+
+  nextBtn.addEventListener('click', ()=>{
+    qi++;
+    if(qi >= testQuestions.length){
+      showResult();
+    } else {
+      renderQuestion();
+    }
+  });
+
+  quitBtn.addEventListener('click', ()=>{
+    testArea.classList.remove('show');
+    setupArea.classList.remove('hide');
+  });
+
+  async function showResult(){
+    testArea.classList.remove('show');
+    resultArea.classList.add('show');
+    document.getElementById('resultScore').textContent = correctCount + "/" + testQuestions.length;
+    const pct = Math.round((correctCount/testQuestions.length)*100);
+    document.getElementById('resultPct').textContent = pct + "% to'g'ri javob";
+
+    const weakList = document.getElementById('weakList');
+    const weakItems = document.getElementById('weakItems');
+    const entries = Object.entries(wrongByLesson).sort((a,b)=>b[1]-a[1]);
+    if(entries.length){
+      weakList.style.display = 'block';
+      weakItems.innerHTML = entries.map(([lesson,count])=>
+        `<div>Dars ${lesson} — ${LESSON_TITLES[lesson]} · ${count} ta xato</div>`
+      ).join('');
+    } else {
+      weakList.style.display = 'none';
+    }
+
+    const msgBox = document.getElementById('finalTeacherMsg');
+    const msgText = document.getElementById('finalTeacherText');
+    msgBox.style.display = 'flex';
+    msgText.textContent = "Tahlil qilinyapti...";
+
+    const weakSummary = entries.length
+      ? entries.map(([l,c])=>`Dars ${l} (${LESSON_TITLES[l]}): ${c} ta xato`).join(', ')
+      : "Xato qilinmadi";
+
+    const prompt = `Sen qat'iy, talabchan JavaScript Quest Teacher (AI o'qituvchi)san, o'quvchiga har doim "sen" deb murojaat qilasan. O'quvchi hozirgina test yechdi.
+
+NATIJA: ${correctCount}/${testQuestions.length} to'g'ri (${pct}%)
+XATO QILINGAN MAVZULAR: ${weakSummary}
+O'QUVCHI HOZIR "${currentLesson}. ${LESSON_TITLES[currentLesson]}" darsida.
+
+Vazifang: 3-4 gaplik xulosa yoz.
+- Agar natija PAST (60% dan kam) bo'lsa: qattiq, jiddiy ohangda gapir — "bu natija qoniqarli emas", "nega bu darsni yaxshi o'zlashtirmading" kabi to'g'ridan-to'g'ri savol-tanbeh bilan boshla, xato qilingan mavzularni aniq atab, ularni albatta qayta ko'rib chiqishni QATTIQ TALAB qil. Bahonaga o'rin qoldirma, lekin haqorat qilma va kamsitma — qat'iylik bilan hurmatsizlik orasidagi chegarani saqla.
+- Agar natija O'RTACHA (60-84%) bo'lsa: qoniqarli emasligini ayt, aniq qaysi mavzuga ko'proq ishlash kerakligini ko'rsat, keyingi safar yaxshiroq natija kutilishini bildir.
+- Agar natija YUQORI (85%+) bo'lsa: qisqa tan ol, lekin ortiqcha maqtama — "yaxshi, davom et" ohangida, bo'shashib qolmaslikka undab qo'y.
+O'zbek tilida, qat'iy va professional ohangda, markdown belgilarsiz, "sen" deb murojaat qilib yoz.`;
+
+    try{
+      const text = await callGroq(
+        [
+          { role: "user", content: prompt }
+        ],
+        { max_tokens: 400 }
+      );
+
+      msgText.textContent = text || "Yaxshi ishladingiz! Xato qilingan mavzularni yana bir bor ko'rib chiqing.";
+    }catch(e){
+      msgText.textContent = "Yaxshi ishladingiz! Xato qilingan mavzularni yana bir bor ko'rib chiqing.";
+    }
+  }
+
+  startBtn.addEventListener('click', startTest);
+  document.getElementById('retryBtn').addEventListener('click', ()=>{
+    resultArea.classList.remove('show');
+    setupArea.classList.remove('hide');
+  });
+
+  // ================= View navigation =================
+  const views = {
+    home: document.getElementById('view-home'),
+    chat: document.getElementById('view-chat'),
+    tests: document.getElementById('view-tests'),
+    settings: document.getElementById('view-settings')
+  };
+  const navItems = document.querySelectorAll('.nav-item');
+  const appEl = document.getElementById('app');
+
+  function goToView(name){
+    Object.entries(views).forEach(([k,el])=> el.classList.toggle('active', k===name));
+    navItems.forEach(b=> b.classList.toggle('active', b.dataset.view===name));
+    appEl.classList.toggle('on-home', name === 'home');
+    if(name === 'chat') initChatIfNeeded();
+  }
+
+  navItems.forEach(b=> b.addEventListener('click', ()=> goToView(b.dataset.view)));
+  document.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> goToView(b.dataset.goto)));
+
+  // ================= Chat =================
+  const CHAT_SESSIONS_KEY = 'quest-chat-sessions';
+  const STUDENT_NAME = "MR";
+  let chatSessions = [];
+  let activeSessionId = null;
+  let chatLoaded = false;
+  let chatBusy = false;
+
+  const chatLog = document.getElementById('chatLog');
+  const chatInput = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSendBtn');
+  const chatSessionList = document.getElementById('chatSessionList');
+  const chatNewBtn = document.getElementById('chatNewBtn');
+  const chatShell = document.getElementById('chatShell');
+  const chatSidebarToggle = document.getElementById('chatSidebarToggle');
+
+  function getActiveSession(){
+    return chatSessions.find(s => s.id === activeSessionId) || null;
+  }
+
+  function weakLessonsSummary(){
+    const entries = Object.entries(profile.history || {})
+      .filter(([,v])=> v.wrong > 0)
+      .sort((a,b)=> b[1].wrong - a[1].wrong);
+    if(!entries.length) return null;
+    return entries.slice(0,6).map(([l,v])=> `Dars ${l} (${LESSON_TITLES[l]||'?'}) — ${v.wrong} xato, ${v.right||0} to'g'ri`).join('; ');
+  }
+
+  function buildTeacherSystemPrompt(){
+    const weak = weakLessonsSummary();
+    const facts = studentFactsSummary();
+    const now = Date.now();
+    const hoursSinceLastSeen = studentProfile.lastSeenAt ? Math.round((now - studentProfile.lastSeenAt) / 3600000) : null;
+
+    let base = `Sen "Quest Teacher" — qat'iy, talabchan lekin adolatli JavaScript AI-o'qituvchisan. Suhbatlashayotgan o'quvchingning ismi ${STUDENT_NAME}. Unga doim "${STUDENT_NAME}" deb yoki "sen" deb murojaat qil (sizlamang).
+
+O'QUVCHI HAQIDA BILGANLARING (o'zgarmas, avvaldan yig'ilgan ma'lumotlar):
+${facts || "hali hech narsa yig'ilmagan"}
+
+DARSLAR PROFILI:
+- Daraja: ${profile.level}, XP: ${profile.xp}, hozirgi ketma-ket to'g'ri javoblar: ${profile.streak}
+- Hozir shug'ullanayotgan darsi: ${currentLesson}. ${LESSON_TITLES[currentLesson]}
+- Zaif (ko'p xato qilingan) mavzulari: ${weak || "hali aniqlanmagan, test yechilmagan yoki xato qilinmagan"}
+`;
+
+    if(hoursSinceLastSeen !== null && hoursSinceLastSeen >= 6){
+      base += `\nDIQQAT: o'quvchi oxirgi marta taxminan ${hoursSinceLastSeen} soat oldin faol bo'lgan (uzoq tanaffusdan keyin qaytdi). Suhbatni juda qisqa, samimiy hol-ahvol so'rash bilan boshla (1 gap), keyin darhol o'qishga qayt — uzoq nutq so'zlama.\n`;
+    }
+
+    base += `
+Vazifang:
+- O'quvchi bilan erkin, tabiiy suhbat qur — lekin professional o'qituvch pozitsiyasini saqla.
+- Yuqoridagi "o'quvchi haqida bilganlaring" bo'limidan foydalanib, unga individual, shaxsiylashtirilgan yordam ber — masalan uning maqsadi yoki vaqt imkoniyatiga mos tavsiyalar ber.
+- Agar zaif mavzular mavjud bo'lsa va suhbat mavzusiga mos kelsa, o'sha mavzu haqida to'g'ridan-to'g'ri, qat'iy ohangda so'ra — masalan nega o'sha darsni yaxshi o'zlashtirmagani, qayerda qiynalayotgani. Bahonaga o'rin qoldirma, lekin haqorat qilma.
+- Savollariga aniq, tushunarli, qisqa (odatda 2-5 gap) javob ber, kerak bo'lsa kichik kod namunasi bilan tushuntir.
+- O'zbek tilida, chat uslubida yoz. Matnda **so'z** shaklida qalin qilib muhim narsalarni ta'kidlashing mumkin. Agar kod namunasi kerak bo'lsa, uni albatta uch qiyshiq tirnoq bilan o'rab yoz, masalan:
+\`\`\`js
+let son = 5;
+console.log(son);
+\`\`\`
+Kodni hech qachon oddiy matn ichida yozma — doim shu formatdagi kod blokidan foydalan.`;
+    return base;
+  }
+
+  function buildOnboardingSystemPrompt(){
+    return `Sen "Quest Teacher" — JavaScript AI-o'qituvchisan. Bu o'quvchi bilan BIRINCHI marta gaplashyapsan, uning haqida hali hech narsa bilmaysan.
+
+Vazifang: unga qisqa, samimiy salom ber va uni yaxshiroq tanish uchun 3-4 ta savol ber — masalan: nega JavaScript o'rganmoqchi (ish, loyiha, hobbi), qanday tajribasi bor, kuniga qancha vaqt ajrata oladi, qaysi sohaga qiziqadi. Savollarni bittada emas, tabiiy suhbat tarzida bir necha xabar davomida so'rashing mumkin, lekin ko'p cho'zma.
+
+O'zbek tilida, iliq va samimiy ohangda yoz. Hozircha darsga o'tma — avval tanishib ol.`;
+  }
+
+  function buildProfileExtractionPrompt(conversationText){
+    return `Quyidagi o'qituvchi va o'quvchi orasidagi tanishuv suhbatini o'qi, va o'quvchi haqida aniqlangan doimiy faktlarni JSON obyekt sifatida qaytar. Faqat aniq, suhbatda haqiqatan aytilgan narsalarni yoz — o'ylab topma. Kalitlar qisqa o'zbekcha bo'lsin (masalan: maqsad, tajriba, vaqt, qiziqish). Agar biror narsa aniqlanmagan bo'lsa, uni qo'shma. FAQAT JSON qaytar, boshqa hech narsa yozma, tirnoq yoki izohsiz.
+
+Suhbat:
+${conversationText}`;
+  }
+
+  function parseInlineMarkdown(text){
+    let t = escapeHtml(text);
+    t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    t = t.replace(/`(.+?)`/g, '<code class="inline-code">$1</code>');
+    t = t.replace(/\n/g, '<br>');
+    return t;
+  }
+
+  function buildChatCodeBlock(code, lang){
+    const wrap = document.createElement('div');
+    wrap.className = 'code-editor';
+    const lines = code.replace(/\t/g, '  ').split('\n');
+    const linesHtml = lines.map((l,i)=>
+      `<div class="code-line"><span class="ln">${i+1}</span><span class="lc">${highlightJS(l)}</span></div>`
+    ).join('');
+    wrap.innerHTML =
+      '<div class="title-bar"><span class="r"></span><span class="y"></span><span class="g"></span><span class="fname">' + (lang || 'script.js') + '</span></div>' +
+      '<div class="code-body">' + linesHtml + '</div>';
+    return wrap;
+  }
+
+  function renderFormattedContent(container, text){
+    const fenceRe = /```(\w+)?\n([\s\S]*?)```/g;
+    let lastIndex = 0, m, any = false;
+
+    while((m = fenceRe.exec(text)) !== null){
+      any = true;
+      const before = text.slice(lastIndex, m.index).trim();
+      if(before){
+        const p = document.createElement('div');
+        p.className = 'msg-text';
+        p.innerHTML = parseInlineMarkdown(before);
+        container.appendChild(p);
+      }
+      if(m[2].trim()){
+        container.appendChild(buildChatCodeBlock(m[2], m[1]));
+      }
+      lastIndex = fenceRe.lastIndex;
+    }
+
+    const rest = text.slice(lastIndex).trim();
+    if(rest || !any){
+      const p = document.createElement('div');
+      p.className = 'msg-text';
+      p.innerHTML = parseInlineMarkdown(rest || text);
+      container.appendChild(p);
+    }
+  }
+
+  function renderChatMessage(role, text){
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'assistant' ? 'teacher' : 'me');
+    if(role === 'assistant'){
+      renderFormattedContent(div, text);
+    } else {
+      div.textContent = text;
+    }
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return div;
+  }
+
+  function renderAllChat(){
+    chatLog.innerHTML = '';
+    const session = getActiveSession();
+    if(session){
+      session.messages.forEach(m => renderChatMessage(m.role, m.content));
+    }
+  }
+
+  function makeSessionId(){
+    return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  function deriveTitleFromText(text){
+    let t = text.replace(/[?.!]/g, '').replace(/\n/g, ' ').trim();
+    if(!t) return "Yangi suhbat";
+    if(t.length > 42) t = t.slice(0, 42).trim();
+    return t;
+  }
+
+  function createNewSession(makeActive){
+    const session = { id: makeSessionId(), title: "Yangi suhbat", messages: [], updatedAt: Date.now() };
+    chatSessions.unshift(session);
+    if(makeActive !== false){
+      activeSessionId = session.id;
+      saveChatSessions();
+      renderSessionList();
+    }
+    return session;
+  }
+
+  function renderSessionList(){
+    chatSessionList.innerHTML = '';
+    if(!chatSessions.length){
+      const empty = document.createElement('div');
+      empty.className = 'chat-session-empty';
+      empty.textContent = "Hali suhbatlar yo'q";
+      chatSessionList.appendChild(empty);
+      return;
+    }
+
+    const sorted = [...chatSessions].sort((a,b)=> b.updatedAt - a.updatedAt);
+    sorted.forEach(session => {
+      const item = document.createElement('div');
+      item.className = 'chat-session-item' + (session.id === activeSessionId ? ' active' : '');
+      const title = document.createElement('div');
+      title.className = 'chat-session-title';
+      title.textContent = session.title || "Yangi suhbat";
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'chat-session-del';
+      delBtn.textContent = '×';
+      delBtn.title = "O'chirish";
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteSession(session.id);
+      });
+      item.appendChild(title);
+      item.appendChild(delBtn);
+      item.addEventListener('click', () => switchToSession(session.id));
+      chatSessionList.appendChild(item);
+    });
+  }
+
+  function switchToSession(id){
+    if(id === activeSessionId){
+      closeSidebarOnMobile();
+      return;
+    }
+    activeSessionId = id;
+    renderAllChat();
+    renderSessionList();
+    closeSidebarOnMobile();
+  }
+
+  function deleteSession(id){
+    const idx = chatSessions.findIndex(s => s.id === id);
+    if(idx === -1) return;
+    chatSessions.splice(idx, 1);
+    if(activeSessionId === id){
+      activeSessionId = chatSessions.length ? [...chatSessions].sort((a,b)=> b.updatedAt - a.updatedAt)[0].id : null;
+    }
+    if(!activeSessionId){
+      createNewSession();
+    } else {
+      renderAllChat();
+    }
+    saveChatSessions();
+    renderSessionList();
+  }
+
+  function closeSidebarOnMobile(){
+    chatShell.classList.remove('sidebar-open');
+  }
+
+  chatNewBtn.addEventListener('click', () => {
+    createNewSession();
+    renderAllChat();
+    closeSidebarOnMobile();
+    startSessionOpener();
+  });
+
+  chatSidebarToggle.addEventListener('click', () => {
+    chatShell.classList.toggle('sidebar-open');
+  });
+
+  async function loadChatHistory(){
+    try{
+      const res = await storage.get(CHAT_SESSIONS_KEY);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed)) chatSessions = parsed;
+      }
+    }catch(e){}
+  }
+
+  async function saveChatSessions(){
+    try{ await storage.set(CHAT_SESSIONS_KEY, JSON.stringify(chatSessions)); }
+    catch(e){}
+  }
+
+  async function generateSessionTitle(session){
+    const firstUserMsg = session.messages.find(m => m.role === 'user');
+    if(!firstUserMsg) return;
+    const raw = deriveTitleFromText(firstUserMsg.content);
+    session.title = raw;
+    saveChatSessions();
+    renderSessionList();
+
+    try{
+      const title = await callGroq(
+        [
+          { role: "user", content: `Quyidagi birinchi xabar asosida ushbu suhbatga juda qisqa sarlavha ber (3-5 so'z), tirnoqsiz, nuqtasiz, faqat sarlavha matnini yoz, boshqa hech narsa yozma: ${firstUserMsg.content.slice(0,300)}` }
+        ],
+        { max_tokens: 50 }
+      );
+
+      const clean = title.replace(/[?.!]/g, '').trim();
+      if(clean && clean.length <= 60){
+        session.title = clean;
+        saveChatSessions();
+        renderSessionList();
+      }
+    }catch(e){}
+  }
+
+  async function callTeacher(messages, systemOverride){
+    return callGroq(messages, {
+      system: systemOverride || buildTeacherSystemPrompt(),
+      max_tokens: 700
+    });
+  }
+
+  async function startSessionOpener(){
+    const session = getActiveSession();
+    if(!session || session.messages.length > 0) return;
+
+    const needsOnboarding = !studentProfile.onboarded;
+    if(needsOnboarding){
+      session.onboarding = true;
+    }
+
+    const typingEl = renderChatMessage('assistant', 'yozyapti...');
+    typingEl.classList.add('typing');
+
+    try{
+      const openerPrompt = needsOnboarding
+        ? "Suhbatni sen boshla: o'quvchi bilan iliq tanish, keyin uni tanish uchun savollar ber."
+        : `Suhbatni sen boshla: o'quvchi bilan salomlash va profiliga qarab birinchi savolingni ber.`;
+
+      const systemPrompt = needsOnboarding ? buildOnboardingSystemPrompt() : undefined;
+
+      const opener = await callGroq(
+        [
+          { role: "user", content: openerPrompt }
+        ],
+        { system: systemPrompt, max_tokens: 500 }
+      );
+
+      typingEl.remove();
+      const text = opener || `Salom, ${STUDENT_NAME}! Bugun qaysi mavzu bo'yicha gaplashamiz?`;
+      session.messages.push({ role: 'assistant', content: text });
+      session.updatedAt = Date.now();
+      renderChatMessage('assistant', text);
+      saveChatSessions();
+      renderSessionList();
+    }catch(e){
+      typingEl.remove();
+      const fallback = `Salom, ${STUDENT_NAME}! Ulanishda muammo bo'ldi, lekin baribir gaplashishimiz mumkin — nima haqida so'ramoqchisan?`;
+      session.messages.push({ role: 'assistant', content: fallback });
+      session.updatedAt = Date.now();
+      renderChatMessage('assistant', fallback);
+      saveChatSessions();
+      renderSessionList();
+    }
+
+    studentProfile.lastSeenAt = Date.now();
+    saveStudentProfile();
+  }
+
+  async function tryFinishOnboarding(session){
+    const userMsgCount = session.messages.filter(m => m.role === 'user').length;
+    if(userMsgCount < 3) return;
+    if(studentProfile.onboarded) return;
+
+    try{
+      const conversationText = session.messages
+        .map(m => (m.role === 'user' ? 'O'quvchi: ' : 'O'qituvchi: ') + m.content)
+        .join('\n');
+
+      const extracted = await callGroq(
+        [
+          { role: "user", content: buildProfileExtractionPrompt(conversationText) }
+        ],
+        { max_tokens: 300 }
+      );
+
+      const jsonMatch = extracted.match(/\{[\s\S]*\}/);
+      if(jsonMatch){
+        const facts = JSON.parse(jsonMatch[0]);
+        if(facts && typeof facts === 'object' && Object.keys(facts).length){
+          studentProfile.facts = Object.assign(studentProfile.facts || {}, facts);
+          studentProfile.onboarded = true;
+          saveStudentProfile();
+        }
+      }
+    }catch(e){}
+  }
+
+  async function initChatIfNeeded(){
+    if(chatLoaded) return;
+    chatLoaded = true;
+
+    await loadChatHistory();
+    await loadStudentProfile();
+
+    if(!chatSessions.length){
+      createNewSession();
+    } else if(!activeSessionId){
+      activeSessionId = [...chatSessions].sort((a,b)=> b.updatedAt - a.updatedAt)[0].id;
+    }
+
+    renderSessionList();
+    renderAllChat();
+    await startSessionOpener();
+  }
+
+  async function sendChatMessage(overrideText){
+    const text = typeof overrideText === 'string' ? overrideText : chatInput.value.trim();
+    if(!text || chatBusy) return;
+
+    const session = getActiveSession();
+    if(!session) return;
+
+    chatBusy = true;
+    chatSendBtn.disabled = true;
+
+    if(typeof overrideText !== 'string'){
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+    }
+
+    const isFirstUserMsg = !session.messages.some(m => m.role === 'user');
+    session.messages.push({ role: 'user', content: text });
+    session.updatedAt = Date.now();
+    renderChatMessage('user', text);
+    saveChatSessions();
+    renderSessionList();
+
+    if(isFirstUserMsg){
+      generateSessionTitle(session);
+    }
+
+    const typingEl = renderChatMessage('assistant', 'yozyapti...');
+    typingEl.classList.add('typing');
+
+    try{
+      const systemPrompt = (session.onboarding && !studentProfile.onboarded) ? buildOnboardingSystemPrompt() : undefined;
+
+      const reply = await callGroq(session.messages, {
+        system: systemPrompt,
+        max_tokens: 700
+      });
+
+      typingEl.remove();
+      const finalText = reply || "Kechirasan, javob tayyorlab bo'lmadi. Qayta urinib ko'r.";
+      session.messages.push({ role: 'assistant', content: finalText });
+      session.updatedAt = Date.now();
+      renderChatMessage('assistant', finalText);
+      saveChatSessions();
+      renderSessionList();
+
+      if(session.onboarding && !studentProfile.onboarded){
+        await tryFinishOnboarding(session);
+      }
+    }catch(e){
+      typingEl.remove();
+      renderChatMessage('assistant', 'Ulanishda xatolik bo\'ldi. Birozdan so\'ng qayta urinib ko\'r.');
+    }
+
+    studentProfile.lastSeenAt = Date.now();
+    saveStudentProfile();
+    chatBusy = false;
+    chatSendBtn.disabled = false;
+    chatInput.focus();
+  }
+
+  chatSendBtn.addEventListener('click', () => sendChatMessage());
+  chatInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+  chatInput.addEventListener('input', () => {
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(120, chatInput.scrollHeight) + 'px';
+  });
+
+  // Chat / Code mode toggle
+  const chatPlainBox = document.getElementById('chatPlainBox');
+  const codeInputBox = document.getElementById('codeInputBox');
+  const codeInput = document.getElementById('codeInput');
+  const codeSendBtn = document.getElementById('codeSendBtn');
+  const ccLines = document.getElementById('ccLines');
+  const ccHighlight = document.getElementById('ccHighlight');
+  const ccBody = document.getElementById('ccBody');
+  const modeHint = document.getElementById('modeHint');
+  const modeBtns = document.querySelectorAll('.mode-btn');
+
+  function setInputMode(mode){
+    modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    chatPlainBox.classList.toggle('hidden', mode === 'code');
+    codeInputBox.classList.toggle('active', mode === 'code');
+    if(mode === 'code'){
+      modeHint.textContent = "Kod bloki sifatida yuboriladi";
+      updateCodeCompose();
+      codeInput.focus();
+    } else {
+      modeHint.textContent = "Enter — yuborish, Shift+Enter — yangi qator";
+      chatInput.focus();
+    }
+  }
+
+  modeBtns.forEach(b => b.addEventListener('click', () => setInputMode(b.dataset.mode)));
+
+  function updateCodeCompose(){
+    const lines = codeInput.value.split('\n');
+    ccLines.innerHTML = lines.map((_,i) => i+1).join('<br>');
+    ccHighlight.innerHTML = lines.map(l => highlightJS(l) + '&nbsp;').join('<br>');
+  }
+
+  codeInput.addEventListener('input', updateCodeCompose);
+  codeInput.addEventListener('scroll', () => {
+    ccLines.style.top = -codeInput.scrollTop + 'px';
+    ccHighlight.style.top = -codeInput.scrollTop + 'px';
+  });
+
+  function sendCodeMessage(){
+    const code = codeInput.value.replace(/\t/g, '  ');
+    if(!code.trim() || chatBusy) return;
+
+    const note = chatInput.value.trim();
+    const wrapped = '```js\n' + code + '\n```' + (note ? '\n\n' + note : '');
+
+    codeInput.value = '';
+    updateCodeCompose();
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    sendChatMessage(wrapped);
+  }
+
+  codeSendBtn.addEventListener('click', sendCodeMessage);
+  codeInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      sendCodeMessage();
+    }
+  });
+  codeInput.addEventListener('input', () => {
+    chatInput.style.height = 'auto';
+    const lineHeight = 19;
+    const maxHeight = lineHeight * 5 + 22;
+    chatInput.style.height = Math.min(maxHeight, chatInput.scrollHeight) + 'px';
+    chatInput.style.overflowY = chatInput.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  });
+
+  // ================= Settings =================
+  const groqApiKeyInput = document.getElementById('groqApiKey');
+  const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+  const testApiBtn = document.getElementById('testApiBtn');
+  const apiStatus = document.getElementById('apiStatus');
+
+  groqApiKeyInput.value = getGroqKey();
+
+  saveApiKeyBtn.addEventListener('click', () => {
+    const key = groqApiKeyInput.value.trim();
+    if(!key){
+      apiStatus.textContent = "API key bo'sh bo'lishi mumkin emas.";
+      apiStatus.style.color = "var(--danger)";
+      return;
+    }
+    setGroqKey(key);
+    apiStatus.textContent = "API key muvaffaqiyatli saqlandi.";
+    apiStatus.style.color = "var(--accent)";
+    showToast("API key saqlandi");
+  });
+
+  testApiBtn.addEventListener('click', async () => {
+    const key = getGroqKey();
+    if(!key){
+      apiStatus.textContent = "Avval API keyni kiriting va saqlang.";
+      apiStatus.style.color = "var(--danger)";
+      return;
+    }
+
+    apiStatus.textContent = "Test qilinmoqda...";
+    apiStatus.style.color = "var(--dim)";
+
+    try{
+      await callGroq(
+        [
+          { role: "user", content: "Javob sifatida faqat 'OK' so'zini yoz." }
+        ],
+        { max_tokens: 10 }
+      );
+
+      apiStatus.textContent = "API kalit to'g'ri ishlayapti.";
+      apiStatus.style.color = "var(--accent)";
+      showToast("API test muvaffaqiyatli");
+    }catch(e){
+      apiStatus.textContent = "Xatolik: " + e.message;
+      apiStatus.style.color = "var(--danger)";
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
