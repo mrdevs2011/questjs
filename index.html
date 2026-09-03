@@ -1550,28 +1550,31 @@ async function startSessionOpener() {
     if (!needsOnboarding) {
       const facts = studentFactsSummary();
       const weak = weakLessonsSummary();
+      const currentTopic = `${currentLesson}. ${LESSON_TITLES[currentLesson]}`;
       
-      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan. Unga Angry Teacher uslubida salom ber.
+      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan.
 
 U haqida bilganlaring:
 - Ismi: ${STUDENT_NAME}
 - Ma'lumotlar: ${facts || "Hali yo'q"}
 - Zaif mavzulari: ${weak || "Aniqlanmagan"}
+- Hozirgi darsi: ${currentTopic}
 
-✅ MUHIM: 
+✅ MUHIM:
 1. KATTA HARFLAR BILAN YOZMA! Tabiiy ohangda yoz.
-2. "Qani, ${STUDENT_NAME}! Yana keldingmi?!" yoki "Qani, ishga kirishamizmi, ${STUDENT_NAME}?!" deb boshlang'ich salom yoz.
-3. Tanishish savollari berma.
-4. Darhol zaif mavzulari haqida gapir.
-5. Hech qachon "qanday yordam bera olaman" yoki shunga o'xshash yumshoq so'zlarni ishlatma!
-6. 2-3 gapdan oshmasin.`;
+2. Unga hozirgi mavzu bo'yicha salom ber!
+   Masalan: "Qani, ${STUDENT_NAME}! ${currentTopic} ni davom ettiramiz!"
+3. Agar zaif mavzulari bo'lsa, o'sha mavzuni eslat!
+   Masalan: "${weak} mavzularida xatolaring bor, ishlaymiz!"
+4. Hech qachon "qanday yordam bera olaman" dema!
+5. 2-3 gapdan oshmasin.`;
 
     } else {
       const questions = await getPersonalQuestions();
-      openerPrompt = `O'quvchi bilan BIRINCHI marta gaplashyapsan. Unga qattiq Angry Teacher uslubida salom ber.
+      openerPrompt = `O'quvchi bilan BIRINCHI marta gaplashyapsan.
 
 MUHIM: KATTA HARFLAR BILAN YOZMA! Tabiiy ohangda yoz.
-"Qani, kim siz?! Ismingizni ayting!" yoki "Xush kelibsiz! Lekin vaqt ketayapti! Ismingizni ayting!" deb boshlang'ich salom yoz.
+"Qani, kim siz?! Ismingizni ayting! JS o'rganmoqchimisiz?" deb boshlang'ich salom yoz.
 
 Keyin quyidagi savollardan 2-3 tasini ber:
 ${questions.slice(0, 3).join('\n')}
@@ -1588,14 +1591,12 @@ Qattiq bo'l, lekin qo'rqitma! Hech qachon yumshoq bo'lma!`;
 
     typingEl.remove();
     
-    let text = opener || `Qani, ${STUDENT_NAME}! Yana keldingmi?! Ishlashni boshladik!`;
+    let text = opener || `Qani, ${STUDENT_NAME}! ${currentLesson}. ${LESSON_TITLES[currentLesson]} ni davom ettiramiz!`;
     
     if (!needsOnboarding) {
       const weak = weakLessonsSummary();
       if (weak) {
-        text += `\n\n${weak} mavzularida xatolaring ko'p! Buni tuzatmaguningcha qo'ymayman!`;
-      } else {
-        text += `\n\n${currentLesson}. ${LESSON_TITLES[currentLesson]} — bu mavzuni o'zlashtir! Vaqt ketayapti!`;
+        text += `\n\n${weak} mavzularida xatolaring bor, ishlaymiz!`;
       }
     }
     
@@ -1607,7 +1608,8 @@ Qattiq bo'l, lekin qo'rqitma! Hech qachon yumshoq bo'lma!`;
     
   } catch (e) {
     typingEl.remove();
-    const fallback = `Qani, ${STUDENT_NAME}! Ulanishda muammo, lekin to'xtaymizmi?! Ishlaylik!`;
+    const currentTopic = `${currentLesson}. ${LESSON_TITLES[currentLesson]}`;
+    const fallback = `Qani, ${STUDENT_NAME}! ${currentTopic} ga o'tamiz! Ulanishda muammo, lekin to'xtamaymiz!`;
     session.messages.push({ role: 'assistant', content: fallback });
     session.updatedAt = Date.now();
     renderChatMessage('assistant', fallback);
