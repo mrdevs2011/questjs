@@ -1186,55 +1186,35 @@ function buildTeacherSystemPrompt() {
   const now = Date.now();
   const hoursSinceLastSeen = studentProfile.lastSeenAt ? Math.round((now - studentProfile.lastSeenAt) / 3600000) : null;
 
-  // ✅ O'quvchi haqida to'liq ma'lumot
   let base = `Sen "Quest Teacher" — qat'iy, talabchan lekin adolatli JavaScript AI-o'qituvchisan. Suhbatlashayotgan o'quvchingning ismi ${STUDENT_NAME}. Unga doim "${STUDENT_NAME}" deb yoki "sen" deb murojaat qil (sizlamang).
 
-🔴 MUHIM: Bu o'quvchi bilan birinchi marta gaplashmayapsan! Uni allaqachon bilasan va quyidagi ma'lumotlar senga avvaldan ma'lum:
+🔴 MUHIM: Bu o'quvchi bilan birinchi marta gaplashmayapsan! Uni allaqachon bilasan.
 
-O'QUVCHI HAQIDA BILGANLARING (doimiy xotira):
-${facts || "Hali ma'lumot to'planganmagan, lekin suhbat davomida eslab qolasan"}
+O'QUVCHI HAQIDA BILGANLARING:
+${facts || "Hali ma'lumot to'planganmagan"}
 
-📊 O'QUVCHINING PROGRESSI (test natijalari):
-- Daraja: ${profile.level}
-- XP: ${profile.xp}
-- Ketma-ket to'g'ri javoblar: ${profile.streak}
-- Eng yaxshi streak: ${profile.bestStreak || 0}
+📊 PROGRESSI:
+- Daraja: ${profile.level}, XP: ${profile.xp}
+- Streak: ${profile.streak}, Eng yaxshi: ${profile.bestStreak || 0}
 - Hozirgi darsi: ${currentLesson}. ${LESSON_TITLES[currentLesson]}
 
-📚 ZAIF MAVZULARI (ko'p xato qilgan joylari):
-${weak || "Hali aniqlanmagan, test yechilmagan"}
+📚 ZAIF MAVZULARI:
+${weak || "Aniqlanmagan"}
 
-📝 OLDINGI SUHBATLARDAN ESLANGANLAR:
-- O'quvchi bilan oldin gaplashganingda u haqida bilganlaringni eslab qol.
-- Uning maqsadlari, qiziqishlari, vaqt imkoniyatlari haqida gap ketgan bo'lsa, eslab qol.
-- Agar oldingi suhbatda biror mavzu bo'yicha maslahat bergan bo'lsang, uni eslab qol va davom ettir.
-`;
-
-  if (hoursSinceLastSeen !== null && hoursSinceLastSeen >= 6) {
-    base += `\n⏰ DIQQAT: O'quvchi oxirgi marta taxminan ${hoursSinceLastSeen} soat oldin faol bo'lgan. Uzoq tanaffusdan keyin qaytgan. Unga avvalgi suhbatlaringni eslatib, qisqa salomdan so'ng darhol o'qishga qaytishni taklif qil.\n`;
-  }
-
-  base += `
 🎯 VAZIFANG:
-1. O'quvchini eslab qol va har safar yangidan tanishma!
-2. Avvalgi suhbatlardan kelib chiqib, unga shaxsiylashtirilgan yordam ber.
-3. Zaif mavzularini eslab qol va ular bo'yicha savollar ber.
-4. Agar o'quvchi biror narsani unutgan bo'lsa, uni eslat.
-5. Suhbatni davom ettir — har safar yangi boshlama.
+1. O'quvchini eslab qol - har safar yangidan tanishma!
+2. Qisqa va samimiy bo'l - uzoq matn yozma.
+3. Tanishish savollari berma (ism, yosh, qayerdan vs.) - buni allaqachon bilasan!
+4. Darhol mavzuga o't - zaif mavzulari yoki hozirgi darsi haqida gapir.
+5. Javoblaring 2-5 gapdan oshmasin.
 
 💬 USLUB:
 - O'zbek tilida, chat uslubida yoz.
 - Matnda **so'z** shaklida qalin qilib muhim narsalarni ta'kidla.
-- Kodni albatta uch qiyshiq tirnoq bilan o'rab yoz:
-\`\`\`js
-let son = 5;
-console.log(son);
-\`\`\`
-- Iloji boricha qisqa va aniq javob ber (2-5 gap).
+- Kodni albatta uch qiyshiq tirnoq bilan o'rab yoz.
 `;
   return base;
 }
-
   function buildOnboardingSystemPrompt(){
     return `Sen "Quest Teacher" — JavaScript AI-o'qituvchisan. Bu o'quvchi bilan BIRINCHI marta gaplashyapsan, uning haqida hali hech narsa bilmaysan.
 
@@ -1477,36 +1457,54 @@ async function startSessionOpener() {
   typingEl.classList.add('typing');
 
   try {
-    // ✅ Agar o'quvchi allaqachon tanish bo'lsa, eslab qolish
     let openerPrompt;
+    
     if (!needsOnboarding) {
+      // ✅ Tanish bo'lsa - QISQA salom, tanishuv matni YO'Q!
       const facts = studentFactsSummary();
       const weak = weakLessonsSummary();
-      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan. U haqida bilganlaring:
-- ${facts || "Hali ma'lumot yo'q"}
+      
+      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan. 
+      
+U haqida bilganlaring:
+- Ismi: ${STUDENT_NAME}
+- Ma'lumotlar: ${facts || "Hali to'planganmagan"}
 - Zaif mavzulari: ${weak || "Aniqlanmagan"}
 - Hozirgi darsi: ${currentLesson}. ${LESSON_TITLES[currentLesson]}
 
-Suhbatni davom ettir. Unga salom ber va avvalgi suhbatni eslatib, qayerda qolgan bo'lsak, shu yerdan davom et. Agar oldingi suhbatda biror mavzu bo'yicha topshiriq bergan bo'lsang, uni eslat.`;
+✅ MUHIM: Bu o'quvchi bilan BIRINCHI MARTA gaplashmayapsan! Uni tanishishga Hojat YO'Q!
+
+Vazifang:
+1. Qisqa va samimiy salom yoz (maksimal 1-2 gap) - masalan: "Salom ${STUDENT_NAME}! Qalesan?" yoki "Salom, ${STUDENT_NAME}! Bugun nima bilan shug'ullanamiz?"
+2. Tanishish savollari berma - uni allaqachon bilasan!
+3. Darhol uning zaif mavzulari yoki hozirgi darsi haqida gapir.
+4. Suhbatni davom ettir, yangi boshlama.
+
+Javobing juda qisqa bo'lsin (2-3 gapdan oshmasin)!`;
     } else {
-      openerPrompt = "Suhbatni sen boshla: o'quvchi bilan iliq tanish, keyin uni tanish uchun savollar ber.";
+      // ✅ Birinchi marta - tanishish
+      openerPrompt = `Suhbatni sen boshla: o'quvchi bilan iliq tanish, lekin ko'p savol berma (maksimal 3-4 ta). Uni tanish uchun asosiy savollarni ber: ismi, nima uchun JS o'rganyapti, qancha vaqt ajrata oladi.`;
     }
 
     const systemPrompt = needsOnboarding ? buildOnboardingSystemPrompt() : buildTeacherSystemPrompt();
 
     const opener = await callGroq(
       [{ role: "user", content: openerPrompt }],
-      { system: systemPrompt, max_tokens: 500 }
+      { system: systemPrompt, max_tokens: 300 } // ✅ max_tokens 500 → 300 ga tushirildi
     );
 
     typingEl.remove();
-    let text = opener || `Salom, ${STUDENT_NAME}! Bugun qaysi mavzu bo'yicha gaplashamiz?`;
     
-    // ✅ Agar o'quvchi tanish bo'lsa, qo'shimcha eslatma
+    let text = opener || `Salom, ${STUDENT_NAME}! Bugun qanday yordam kerak?`;
+    
+    // ✅ Tanish bo'lsa, qo'shimcha eslatma (lekin qisqa)
     if (!needsOnboarding) {
       const weak = weakLessonsSummary();
       if (weak) {
-        text += `\n\nEslatma: ${weak} mavzularida xato qilgansan. Bugun shu mavzularni ko'rib chiqamizmi?`;
+        // ✅ Qisqa va samimiy
+        text += `\n\n📚 ${weak} mavzularida ishlashimiz kerak. Tayyormisan?`;
+      } else {
+        text += `\n\n📖 Bugun qaysi darsni ko'ramiz?`;
       }
     }
     
@@ -1515,6 +1513,7 @@ Suhbatni davom ettir. Unga salom ber va avvalgi suhbatni eslatib, qayerda qolgan
     renderChatMessage('assistant', text);
     saveChatSessions();
     renderSessionList();
+    
   } catch (e) {
     typingEl.remove();
     const fallback = `Salom, ${STUDENT_NAME}! Ulanishda muammo bo'ldi, lekin baribir gaplashishimiz mumkin — nima haqida so'ramoqchisan?`;
