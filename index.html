@@ -279,7 +279,51 @@
     #view-home.active, #view-tests.active{ padding:16px 16px 24px; }
     #view-chat.active{ padding:10px 10px 10px; }
   }
-
+/* Import/Export tugmalari uchun */
+.import-export-panel {
+  margin-top: 16px;
+  border-color: rgba(126, 231, 135, 0.2);
+}
+.import-export-panel h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--accent);
+}
+.import-export-panel p {
+  margin: 0 0 12px;
+  color: var(--dim);
+  font-size: 13px;
+}
+.import-export-btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.import-export-btns button {
+  flex: 1;
+  min-width: 140px;
+}
+.btn-export {
+  background: rgba(126, 231, 135, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-export:hover {
+  background: rgba(126, 231, 135, 0.2);
+}
+.btn-import {
+  background: rgba(88, 166, 255, 0.1);
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+.btn-import:hover {
+  background: rgba(88, 166, 255, 0.2);
+}
+.import-status {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--dim);
+}
   /* Settings view */
   .settings-form{ display:flex; flex-direction:column; gap:16px; max-width:600px; }
   .settings-form label{ font-size:13.5px; color:var(--dim); display:block; margin-bottom:6px; }
@@ -468,6 +512,17 @@
         <div id="apiStatus" style="font-size:13px; color:var(--dim);"></div>
       </div>
     </div>
+          <!-- ===== IMPORT/EXPORT ===== -->
+      <div class="panel import-export-panel">
+        <h3> Ma'lumotlarni import/export</h3>
+        <p>Barcha ma'lumotlaringizni (profil, XP, chat tarixi, o'quvchi profili) JSON fayl sifatida eksport qiling yoki boshqa qurilmada import qiling.</p>
+        <div class="import-export-btns">
+          <button class="btn-export" id="exportDataBtn">⬇ Export Data</button>
+          <button class="btn-import" id="importDataBtn">⬆ Import Data</button>
+        </div>
+        <input type="file" id="importFileInput" accept=".json" style="display:none;">
+        <div class="import-status" id="importStatus"></div>
+      </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -1673,7 +1728,89 @@ ${conversationText}`;
       apiStatus.style.color = "var(--danger)";
     }
   });
+  // ================= Import/Export Data =================
+  function exportAllData() {
+    try {
+      const data = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        profile: JSON.parse(localStorage.getItem(PROFILE_KEY) || '{"xp":0,"level":1,"streak":0,"bestStreak":0,"history":{}}'),
+        studentProfile: JSON.parse(localStorage.getItem(STUDENT_PROFILE_KEY) || '{"onboarded":false,"facts":{},"lastSeenAt":null}'),
+        chatSessions: JSON.parse(localStorage.getItem(CHAT_SESSIONS_KEY) || '[]')
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quest-teacher-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast("✅ Ma'lumotlar eksport qilindi!");
+      document.getElementById('importStatus').textContent = "✅ Eksport muvaffaqiyatli!";
+      document.getElementById('importStatus').style.color = "var(--accent)";
+    } catch(e) {
+      document.getElementById('importStatus').textContent = "❌ Eksport xatosi: " + e.message;
+      document.getElementById('importStatus').style.color = "var(--danger)";
+    }
+  }
 
+  function importAllData(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (!data.version || !data.profile || !data.studentProfile) {
+          throw new Error("Noto'g'ri fayl formati!");
+        }
+        
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+        localStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(data.studentProfile));
+        if (data.chatSessions) {
+          localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(data.chatSessions));
+        }
+        
+        profile = data.profile;
+        studentProfile = data.studentProfile;
+        chatSessions = data.chatSessions || [];
+        
+        renderProfile();
+        if (chatLoaded) {
+          renderSessionList();
+          renderAllChat();
+        }
+        
+        document.getElementById('importStatus').textContent = "✅ Import muvaffaqiyatli! Sahifa yangilanmoqda...";
+        document.getElementById('importStatus').style.color = "var(--accent)";
+        showToast("✅ Ma'lumotlar import qilindi!");
+        
+        setTimeout(() => location.reload(), 1500);
+      } catch(err) {
+        document.getElementById('importStatus').textContent = "❌ Import xatosi: " + err.message;
+        document.getElementById('importStatus').style.color = "var(--danger)";
+        showToast("❌ Import xatosi!");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // Export tugmasi
+  document.getElementById('exportDataBtn').addEventListener('click', exportAllData);
+  
+  // Import tugmasi
+  document.getElementById('importDataBtn').addEventListener('click', function() {
+    document.getElementById('importFileInput').click();
+  });
+  
+  // Fayl tanlanganda
+  document.getElementById('importFileInput').addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+      importAllData(this.files[0]);
+    }
+    this.value = ''; // Reset
+  });
 })();
 </script>
 </body>
