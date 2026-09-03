@@ -1240,15 +1240,62 @@ Suhbat:
 ${conversationText}`;
   }
 
-function getPersonalQuestions() {
+async function getPersonalQuestions() {
+  const facts = studentFactsSummary();
+  const hasFacts = facts && facts.length > 0;
+  
+  const prompt = hasFacts 
+    ? `O'quvchi ${STUDENT_NAME} haqida quyidagi ma'lumotlar bor:
+${facts}
+
+Bu ma'lumotlarga asoslanib, o'quvchini yaxshiroq tanishish uchun 3-4 ta qisqa, qattiq (Angry Teacher uslubida) savol yarat. Savollar:
+- Oldingi ma'lumotlarga mos bo'lsin
+- Yangi narsalarni o'rganishga qaratilgan bo'lsin
+- Qattiq, lekin qiziqishni o'ldirmaydigan uslubda
+- Har biri 1-2 gapdan oshmasin
+
+Javobni faqat savollar ro'yxati sifatida qaytar (har bir savol yangi qatorda). Boshqa hech narsa yozma.`
+
+    : `O'quvchi ${STUDENT_NAME} haqida hali hech narsa bilmaysan. Unga quyidagi yo'nalishlarda 3-4 ta qisqa, qattiq (Angry Teacher uslubida) savol ber:
+
+1. Ismi va o'zi haqida
+2. Nima uchun JS o'rganmoqchi
+3. Oldingi tajribasi
+4. Vaqti va qiziqishlari
+
+Har bir savol 1-2 gapdan oshmasin, qattiq ohangda bo'lsin. Javobni faqat savollar ro'yxati sifatida qaytar.`;
+
+  try {
+    const response = await callGroq(
+      [{ role: "user", content: prompt }],
+      { 
+        max_tokens: 300,
+        temperature: 0.7
+      }
+    );
+
+    const questions = response
+      .split('\n')
+      .map(q => q.replace(/^[\d\s.)-]+/, '').trim())
+      .filter(q => q.length > 5 && q.includes('?'));
+
+    if (questions.length < 2) {
+      return getDefaultQuestions();
+    }
+
+    return questions.slice(0, 4);
+  } catch (e) {
+    console.debug("Savol yaratish xatosi:", e.message);
+    return getDefaultQuestions();
+  }
+}
+
+function getDefaultQuestions() {
   return [
     "ISMINING MA'NOSI NIMA? O'ZINGNI QANDAY ODAM DEB BILASAN?",
-    "NEGA AYNAN JAVASCRIPTNI O'RGANMOQCHISAN? ISH UCHUNMI, HOBBY UCHUNMI?",
-    "OLDIN BIROR TIL BILGANMISAN? YOKI BUTUNLAY YANGIMISAN?!",
+    "NEGA AYNAN JAVASCRIPTNI O'RGANMOQCHISAN?",
     "KUNIGA QANCHA VAQT AJRATA OLASAN? HAQIQATNI AYT!",
-    "ISH/O'QISHDAN TASHQARI NIMA QILASAN? SPORT, KITOB, O'YIN?",
-    "1 YILDAN KEYIN O'ZINGNI QAYERDA KO'RYAPSAN? JS BILAN NIMA QILMOQCHISAN?",
-    "YOLG'IZ O'QISANMI YOKI KIMDIR TURTIB TURSA O'RGANASANMI?"
+    "1 YILDAN KEYIN O'ZINGNI QAYERDA KO'RYAPSAN?"
   ];
 }
   
@@ -1502,7 +1549,7 @@ Vazifang:
 
     } else {
       // Birinchi marta - shaxsiy savollar
-      const questions = getPersonalQuestions();
+      const questions = await getPersonalQuestions();
       openerPrompt = `O'quvchi bilan BIRINCHI marta gaplashyapsan. Unga qattiq Angry Teacher uslubida salom ber va quyidagi savollardan 2-3 tasini ber (hammasini emas, suhbat davomida so'ra):
 
 ${questions.slice(0, 3).join('\n')}
