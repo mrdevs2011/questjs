@@ -898,7 +898,7 @@ async function callGroq(messages, options = {}) {
       "Authorization": `Bearer ${key}`
     },
     body: JSON.stringify({
-      model: options.model || "qwen/qwen3.6-27b",
+      model: options.model || "openai/gpt-oss-20b",
       messages: messages,
       max_tokens: options.max_tokens || 700,
       temperature: options.temperature || 0.4
