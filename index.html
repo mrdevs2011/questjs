@@ -1221,13 +1221,17 @@ ${weak || "HALI ANIQLANMAGAN"}
 - "QANI, KO'RAY CHIDAMINGNI!"`;
   return base;
 }
-  function buildOnboardingSystemPrompt(){
-    return `Sen "Quest Teacher" — JavaScript AI-o'qituvchisan. Bu o'quvchi bilan BIRINCHI marta gaplashyapsan, uning haqida hali hech narsa bilmaysan.
+function buildOnboardingSystemPrompt(){
+  return `Sen "Angry Teacher" — qattiq, talabchan o'qituvchisan. O'quvchi bilan BIRINCHI marta gaplashyapsan.
 
-Vazifang: unga qisqa, samimiy salom ber va uni yaxshiroq tanish uchun 3-4 ta savol ber — masalan: nega JavaScript o'rganmoqchi (ish, loyiha, hobbi), qanday tajribasi bor, kuniga qancha vaqt ajrata oladi, qaysi sohaga qiziqadi. Savollarni bittada emas, tabiiy suhbat tarzida bir necha xabar davomida so'rashing mumkin, lekin ko'p cho'zma.
+Vazifang: qattiq ohangda salom ber va uni tanish.
+- "ISMINNI AYT! NIMA O'RGANMOQCHISAN?! TEZ AYT!"
+- "JS O'RGANMOQCHIMISAN? UNDA QATTIQ ISHLASHGA TAYYOR BO'L!"
+- Savollarni qisqa va zarba bilan ber.
+- LEKIN qiziqishini o'ldirma — "JUDA ZO'R TANLOV! JS AJOYIB TIL!"
 
-O'zbek tilida, iliq va samimiy ohangda yoz. Hozircha darsga o'tma — avval tanishib ol.`;
-  }
+O'zbek tilida, qattiq va talabchan ohangda yoz.`;
+}
 
   function buildProfileExtractionPrompt(conversationText){
     return `Quyidagi o'qituvchi va o'quvchi orasidagi tanishuv suhbatini o'qi, va o'quvchi haqida aniqlangan doimiy faktlarni JSON obyekt sifatida qaytar. Faqat aniq, suhbatda haqiqatan aytilgan narsalarni yoz — o'ylab topma. Kalitlar qisqa o'zbekcha bo'lsin (masalan: maqsad, tajriba, vaqt, qiziqish). Agar biror narsa aniqlanmagan bo'lsa, uni qo'shma. FAQAT JSON qaytar, boshqa hech narsa yozma, tirnoq yoki izohsiz.
@@ -1236,6 +1240,18 @@ Suhbat:
 ${conversationText}`;
   }
 
+function getPersonalQuestions() {
+  return [
+    "ISMINING MA'NOSI NIMA? O'ZINGNI QANDAY ODAM DEB BILASAN?",
+    "NEGA AYNAN JAVASCRIPTNI O'RGANMOQCHISAN? ISH UCHUNMI, HOBBY UCHUNMI?",
+    "OLDIN BIROR TIL BILGANMISAN? YOKI BUTUNLAY YANGIMISAN?!",
+    "KUNIGA QANCHA VAQT AJRATA OLASAN? HAQIQATNI AYT!",
+    "ISH/O'QISHDAN TASHQARI NIMA QILASAN? SPORT, KITOB, O'YIN?",
+    "1 YILDAN KEYIN O'ZINGNI QAYERDA KO'RYAPSAN? JS BILAN NIMA QILMOQCHISAN?",
+    "YOLG'IZ O'QISANMI YOKI KIMDIR TURTIB TURSA O'RGANASANMI?"
+  ];
+}
+  
   function parseInlineMarkdown(text){
     let t = escapeHtml(text);
     t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -1466,51 +1482,51 @@ async function startSessionOpener() {
     let openerPrompt;
     
     if (!needsOnboarding) {
-      // ✅ Tanish bo'lsa - QISQA salom, tanishuv matni YO'Q!
       const facts = studentFactsSummary();
       const weak = weakLessonsSummary();
       
-      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan. 
-      
+      openerPrompt = `O'quvchi ${STUDENT_NAME} bilan oldin gaplashgansan. Unga Angry Teacher uslubida salom ber.
+
 U haqida bilganlaring:
 - Ismi: ${STUDENT_NAME}
-- Ma'lumotlar: ${facts || "Hali to'planganmagan"}
+- Ma'lumotlar: ${facts || "Hali yo'q"}
 - Zaif mavzulari: ${weak || "Aniqlanmagan"}
-- Hozirgi darsi: ${currentLesson}. ${LESSON_TITLES[currentLesson]}
 
-✅ MUHIM: Bu o'quvchi bilan BIRINCHI MARTA gaplashmayapsan! Uni tanishishga Hojat YO'Q!
+✅ MUHIM: QATTIQ bo'l! LEKIN QIZIQISHINI O'LDIRMA!
 
 Vazifang:
-1. Qisqa va samimiy salom yoz (maksimal 1-2 gap) - masalan: "Salom ${STUDENT_NAME}! Qalesan?" yoki "Salom, ${STUDENT_NAME}! Bugun nima bilan shug'ullanamiz?"
-2. Tanishish savollari berma - uni allaqachon bilasan!
-3. Darhol uning zaif mavzulari yoki hozirgi darsi haqida gapir.
-4. Suhbatni davom ettir, yangi boshlama.
+1. Qattiq salom: "QANI, ${STUDENT_NAME}! YANA KELDINGMI?!" yoki "DAVOM ETAYLIKMI, ${STUDENT_NAME}?!"
+2. Tanishish savollari berma — vaqtni sarflama!
+3. Darhol zaif mavzulari haqida gapir.
+4. 2-3 gapdan oshmasin.`;
 
-Javobing juda qisqa bo'lsin (2-3 gapdan oshmasin)!`;
     } else {
-      // ✅ Birinchi marta - tanishish
-      openerPrompt = `Suhbatni sen boshla: o'quvchi bilan iliq tanish, lekin ko'p savol berma (maksimal 3-4 ta). Uni tanish uchun asosiy savollarni ber: ismi, nima uchun JS o'rganyapti, qancha vaqt ajrata oladi.`;
+      // Birinchi marta - shaxsiy savollar
+      const questions = getPersonalQuestions();
+      openerPrompt = `O'quvchi bilan BIRINCHI marta gaplashyapsan. Unga qattiq Angry Teacher uslubida salom ber va quyidagi savollardan 2-3 tasini ber (hammasini emas, suhbat davomida so'ra):
+
+${questions.slice(0, 3).join('\n')}
+
+QATTIQ bo'l, lekin qo'rqitma!`;
     }
 
     const systemPrompt = needsOnboarding ? buildOnboardingSystemPrompt() : buildTeacherSystemPrompt();
 
     const opener = await callGroq(
       [{ role: "user", content: openerPrompt }],
-      { system: systemPrompt, max_tokens: 300 } // ✅ max_tokens 500 → 300 ga tushirildi
+      { system: systemPrompt, max_tokens: 300 }
     );
 
     typingEl.remove();
     
-    let text = opener || `Salom, ${STUDENT_NAME}! Bugun qanday yordam kerak?`;
+    let text = opener || `QANI, ${STUDENT_NAME}! YANA KELDINGMI?! ISHLASHNI BOSHLADIK!`;
     
-    // ✅ Tanish bo'lsa, qo'shimcha eslatma (lekin qisqa)
     if (!needsOnboarding) {
       const weak = weakLessonsSummary();
       if (weak) {
-        // ✅ Qisqa va samimiy
-        text += `\n\n📚 ${weak} mavzularida ishlashimiz kerak. Tayyormisan?`;
+        text += `\n\n${weak} MAVZULARIDA XATOLARING KO'P! BUNI TUZATMAGUNINGCHA QO'YMAYMAN!`;
       } else {
-        text += `\n\n📖 Bugun qaysi darsni ko'ramiz?`;
+        text += `\n\n${currentLesson}. ${LESSON_TITLES[currentLesson]} — BU MAVZUNI O'ZLASHTIR!`;
       }
     }
     
@@ -1522,7 +1538,7 @@ Javobing juda qisqa bo'lsin (2-3 gapdan oshmasin)!`;
     
   } catch (e) {
     typingEl.remove();
-    const fallback = `Salom, ${STUDENT_NAME}! Ulanishda muammo bo'ldi, lekin baribir gaplashishimiz mumkin — nima haqida so'ramoqchisan?`;
+    const fallback = `QANI, ${STUDENT_NAME}! ULANISHDA MUAMMO BO'LDI, LEKIN TO'XTAYMIZMI?!`;
     session.messages.push({ role: 'assistant', content: fallback });
     session.updatedAt = Date.now();
     renderChatMessage('assistant', fallback);
