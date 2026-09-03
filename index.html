@@ -897,12 +897,19 @@ const WRITE_BANK = [
         "Content-Type": "application/json",
         "Authorization": `Bearer ${key}`
       },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages,
-        max_tokens: options.max_tokens || 700,
-        temperature: 0.4
-      })
+body: JSON.stringify({
+  // ✅ Ishlaydigan modellardan birini tanlang:
+  model: "llama-3.1-70b-versatile",  // Eng yaxshi variant
+  // yoki
+  // model: "llama-3.1-8b-instant",  // Tezroq variant
+  // yoki
+  // model: "llama-3-70b",           // Eski versiya
+  // yoki
+  // model: "mixtral-8x7b-32768",    // Boshqa model
+  messages,
+  max_tokens: options.max_tokens || 700,
+  temperature: 0.4
+})
     });
 
     const data = await response.json();
