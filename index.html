@@ -898,7 +898,7 @@ async function callGroq(messages, options = {}) {
       "Authorization": `Bearer ${key}`
     },
     body: JSON.stringify({
-      model: options.model || "qwen/qwen3.6-27b",  // ✅ Eng yaxshi model
+      model: options.model || "qwen/qwen3.6-27b",
       messages: messages,
       max_tokens: options.max_tokens || 700,
       temperature: options.temperature || 0.4
@@ -911,9 +911,19 @@ async function callGroq(messages, options = {}) {
     throw new Error(data.error?.message || "Groq API error");
   }
 
-  return data.choices?.[0]?.message?.content || "";
+  let content = data.choices?.[0]?.message?.content || "";
+  
+  // ✅ thinking blokini olib tashlash:
+  // 1. <thinking>...</thinking> ni olib tashlash
+  content = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
+  // 2. ```thinking ... ``` ni olib tashlash
+  content = content.replace(/```thinking[\s\S]*?```/g, '');
+  // 3. Qo'shimcha bo'sh qatorlarni tozalash
+  content = content.replace(/\n{3,}/g, '\n\n');
+  content = content.trim();
+  
+  return content;
 }
-
 async function checkWrite(userCode, q, retryWrap, checkBtn){
   if(!userCode.trim()){ alert("Avval kodingizni yozing."); return; }
   checkBtn.disabled = true;
