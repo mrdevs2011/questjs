@@ -2969,20 +2969,69 @@ ${conversationText}`;
   const btPreviewTab = document.getElementById('btPreviewTab');
   const btConsoleTab = document.getElementById('btConsoleTab');
 
+  // Highlight faqat rang beradi — autocomplete / yordamchi yo'q.
+  // Muhim: span class="..." ni keyingi regex qayta ushlamasin (aks holda
+  // ekranda class="tok-kw"> chiqib qolardi). Shuning uchun avval marker,
+  // oxirida span ga almashtiramiz.
   function highlightEditorCode(code, type){
     if(type === 'js') return highlightJS(code);
-    if(type === 'css'){
-      return escHtml(code)
-        .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="tok-com">$1</span>')
-        .replace(/([.#]?[\w-]+)(\s*\{)/g, '<span class="tok-fn">$1</span>$2')
-        .replace(/([\w-]+)(\s*:)/g, '<span class="tok-kw">$1</span>$2')
-        .replace(/(:\s*)([^;{}]+)(;)/g, '$1<span class="tok-str">$2</span>$3');
+
+    function applyMarkers(html){
+      return html
+        .replace(/\u0001/g, '<span class="tok-com">')
+        .replace(/\u0002/g, '<span class="tok-kw">')
+        .replace(/\u0003/g, '<span class="tok-fn">')
+        .replace(/\u0004/g, '<span class="tok-str">')
+        .replace(/\u0005/g, '<span class="tok-num">')
+        .replace(/\u0006/g, '</span>');
     }
-    return escHtml(code)
-      .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="tok-com">$1</span>')
-      .replace(/(&lt;\/?)([\w-]+)/g, '$1<span class="tok-kw">$2</span>')
-      .replace(/([\w:-]+)(=)(&quot;|&#39;|")/g, '<span class="tok-fn">$1</span>$2$3')
-      .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, '<span class="tok-str">$1</span>');
+
+    if(type === 'css'){
+      let s = escHtml(code);
+      // comments
+      s = s.replace(/(\/\*[\s\S]*?\*\/)/g, '\u0001$1\u0006');
+      // selectors before {
+      s = s.replace(/([.#]?[\w-]+)(\s*\{)/g, '\u0003$1\u0006$2');
+      // property names
+      s = s.replace(/(^|[{;\s])([\w-]+)(\s*:)/gm, '$1\u0002$2\u0006$3');
+      // values
+      s = s.replace(/(:\s*)([^;{}]+)/g, function(_, a, val){
+        return a + '\u0004' + val + '\u0006';
+      });
+      return applyMarkers(s);
+    }
+
+    // HTML — original kod ustida tokenlab, keyin escape
+    let out = '';
+    // g1 comment | g2 doctype | g3 tag open | g4 ws+attr | g5 = | g6 value | g7 > | g8 text | g9 lone <
+    const re = /(<!--[\s\S]*?-->)|(<\![A-Z][^>]*>)|(<\/?[a-zA-Z][\w:-]*)|(\s+[a-zA-Z_:][\w:.-]*)(\s*=\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s>]+)|(\s*\/?>)|([^<]+)|(<)/g;
+    let m;
+    re.lastIndex = 0;
+    while((m = re.exec(code))){
+      if(m[1]){ // comment
+        out += '\u0001' + escHtml(m[1]) + '\u0006';
+      } else if(m[2]){ // doctype
+        out += '\u0002' + escHtml(m[2]) + '\u0006';
+      } else if(m[3]){ // <div or </div
+        const tag = m[3];
+        const lt = tag.match(/^(<\/?)/)[1];
+        const name = tag.slice(lt.length);
+        out += escHtml(lt) + '\u0002' + escHtml(name) + '\u0006';
+      } else if(m[4] && m[5] && m[6]){ // attr=value (leading space kept)
+        const attrFull = m[4]; // includes leading whitespace
+        const ws = attrFull.match(/^\s*/)[0];
+        const attrName = attrFull.trim();
+        out += escHtml(ws) + '\u0003' + escHtml(attrName) + '\u0006' + escHtml(m[5]) + '\u0004' + escHtml(m[6]) + '\u0006';
+      } else if(m[7]){ // > or />
+        out += escHtml(m[7]);
+      } else if(m[8]){ // text node
+        out += escHtml(m[8]);
+      } else if(m[9]){ // lone <
+        out += escHtml(m[9]);
+      }
+      if(re.lastIndex === m.index) re.lastIndex++;
+    }
+    return applyMarkers(out);
   }
 
   function renderEditorFileList(){
