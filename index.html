@@ -545,67 +545,16 @@
 </div>
 
 <script>
-// Savollar bazasi
-const QUESTION_BANK = [
-{lesson:1, q:"JavaScript qaysi turdagi til hisoblanadi?", opts:["Faqat server tili","Skript (interpretatsiya qilinuvchi) til","Faqat ma'lumotlar bazasi tili","Operatsion tizim"], correct:1, exp:"JavaScript — brauzerda va serverda bajariladigan interpretatsiya qilinuvchi skript tili."},
-{lesson:1, q:"JavaScript dastlab qaysi maqsadda yaratilgan?", opts:["Veb-sahifalarga interaktivlik qo'shish","Operatsion tizim yaratish","Ma'lumotlar bazasini boshqarish","Rasm tahrirlash"], correct:0, exp:"JS veb-sahifalarni dinamik va interaktiv qilish uchun yaratilgan."},
-{lesson:2, q:"Zamonaviy JavaScript standarti qanday nomlanadi?", opts:["HTML5","ECMAScript (ES)","CSS3","JSON"], correct:1, exp:"JavaScript ECMAScript standartiga asoslanadi (ES5, ES6/ES2015 va h.k.)."},
-{lesson:2, q:"let va const kalit so'zlari qaysi versiyada kiritilgan?", opts:["ES3","ES5","ES6 (ES2015)","ES1"], correct:2, exp:"let, const, arrow function kabi imkoniyatlar ES6 (2015) bilan kirib keldi."},
-{lesson:3, q:'console.log("Salom" + "dunyo") natijasi?', opts:["Salom dunyo","Salomdunyo","Xato beradi","undefined"], correct:1, exp:"+ operatori satrlarni orasiga bo'sh joy qo'shmay birlashtiradi."},
-{lesson:3, q:"Brauzer konsolida natijani chiqarish uchun qaysi funksiya ishlatiladi?", opts:["print()","echo()","console.log()","display()"], correct:2, exp:"console.log() — brauzer konsoliga chiqarish uchun standart usul."},
-{lesson:4, q:"Qaysi biri o'zgaruvchi nomi sifatida NOTO'G'RI?", opts:["let yosh1","let 1yosh","let _yosh","let yosh_1"], correct:1, exp:"O'zgaruvchi nomi raqam bilan boshlana olmaydi."},
-{lesson:4, q:"let ism; console.log(ism); natija nima bo'ladi?", opts:["null","0","undefined","Xato beradi"], correct:2, exp:"Qiymat berilmagan o'zgaruvchi avtomatik ravishda undefined bo'ladi."},
-{lesson:5, q:"typeof 10 nechiga teng?", opts:['"number"','"int"','"string"','"NaN"'], correct:0, exp:"JSda barcha sonlar (butun va kasr) 'number' turiga kiradi."},
-{lesson:5, q:"typeof undefined va typeof null mos ravishda qanday?", opts:['"undefined" va "null"','"undefined" va "object"','"object" va "object"','"undefined" va "undefined"'], correct:1, exp:"typeof null tarixiy xatolik tufayli 'object' qaytaradi."},
-{lesson:6, q:"let, const va var orasidagi asosiy farq nima?", opts:["const qiymatini qayta belgilab bo'lmaydi, let/var esa bo'ladi","Ular hech qanday farq qilmaydi","var faqat sonlar uchun ishlatiladi","let global, const va var lokal bo'ladi"], correct:0, exp:"const o'zgarmas qiymat uchun, let/var qayta belgilashga ruxsat beradi."},
-{lesson:7, q:"let x = 10; x += 5; x *= 2; console.log(x); natija?", opts:["30","25","20","15"], correct:0, exp:"x=10+5=15, keyin 15*2=30."},
-{lesson:8, q:'let ism = "Ali"; console.log(ism.length); natija?', opts:["3","4","undefined","Xato beradi"], correct:0, exp:'"Ali" 3 ta belgidan iborat.'},
-{lesson:9, q:"console.log(true && false || true); natija?", opts:["true","false","undefined","Xato beradi"], correct:0, exp:"&& avval bajariladi: true&&false=false, keyin false||true=true."},
-{lesson:10, q:'Number("12abc") natijasi?', opts:["12","NaN","\"12abc\"","0"], correct:1, exp:"To'liq songa aylanmaydigan satr NaN qaytaradi."},
-{lesson:11, q:"Funksiyani to'g'ri e'lon qilish qaysi?", opts:['function salom() { return "Salom"; }','func salom() { return "Salom"; }','define salom() { return "Salom"; }','salom function() { return "Salom"; }'], correct:0, exp:"Funksiya 'function' kalit so'zi bilan e'lon qilinadi."},
-{lesson:12, q:"const kvadrat = (x) => x * x; console.log(kvadrat(4)); natija?", opts:["8","16","4","Xato beradi"], correct:1, exp:"4*4=16."},
-{lesson:14, q:"let arr = [10, 20, 30]; console.log(arr[1]); natija?", opts:["10","20","30","undefined"], correct:1, exp:"Indeks 0 dan boshlanadi, arr[1] — ikkinchi element (20)."},
-{lesson:15, q:"let arr=[1,2,3]; arr.push(4); console.log(arr.length); natija?", opts:["3","4","5","Xato"], correct:1, exp:"push() oxiriga element qo'shadi: [1,2,3,4] -> length 4."},
-{lesson:16, q:'let odam={ism:"Ali",yosh:20}; console.log(odam.yosh); natija?', opts:['"yosh"',"20","undefined","Xato beradi"], correct:1, exp:"Nuqta orqali murojaat kalitning qiymatini qaytaradi."},
-{lesson:17, q:"Object.keys({a:1,b:2,c:3}) nima qaytaradi?", opts:["[1,2,3]",'["a","b","c"]','{a:1,b:2,c:3}',"3"], correct:1, exp:"Object.keys() kalitlar ro'yxatini array qilib qaytaradi."},
-{lesson:18, q:'let yosh=15; if(yosh>=18){console.log("Katta");}else{console.log("Kichik");} natija?', opts:["Katta","Kichik","true","Hech narsa"], correct:1, exp:"15>=18 noto'g'ri, shuning uchun else bajariladi."},
-{lesson:19, q:"switch operatorida break yozilmasa nima bo'ladi?", opts:["Xato chiqadi","Keyingi case'lar ham bajariladi (fall-through)","Hech narsa o'zgarmaydi","switch to'xtaydi"], correct:1, exp:"break bo'lmasa, kod keyingi case'larga 'tushib' davom etadi."},
-{lesson:20, q:"for(let i=0;i<3;i++){console.log(i);} nechta marta va qaysi qiymatlar chiqadi?", opts:["0,1,2","1,2,3","0,1,2,3","3 marta, faqat 3"], correct:0, exp:"i 0 dan boshlanib, 3 dan kichik bo'lguncha davom etadi: 0,1,2."},
-{lesson:21, q:"while va for orasidagi asosiy farq nima?", opts:["while shart true bo'lguncha ishlaydi, tuzilishi soddaroq","while faqat massivlar uchun","for hech qachon to'xtamaydi","Farqi yo'q, ikkalasi bir xil"], correct:0, exp:"while faqat shartni tekshiradi, for esa boshlang'ich/shart/qadam uchtasini o'z ichiga oladi."},
-{lesson:22, q:"Siklni majburiy to'xtatish uchun qaysi kalit so'z ishlatiladi?", opts:["stop","break","end","exit"], correct:1, exp:"break sikldan darhol chiqadi."},
-{lesson:23, q:"DOM nimani anglatadi?", opts:["Document Object Model","Data Object Management","Digital Output Method","Document Order Map"], correct:0, exp:"DOM — HTML hujjatning obyekt sifatidagi modeli."},
-{lesson:24, q:"id bo'yicha elementni tanlash uchun qaysi metod ishlatiladi?", opts:["document.getElementById()","document.getClass()","document.selectId()","document.findId()"], correct:0, exp:"getElementById() id orqali bitta elementni topadi."},
-{lesson:25, q:"Elementning matnini o'zgartirish uchun qaysi xususiyat ishlatiladi?", opts:["element.text","element.textContent","element.value","element.string"], correct:1, exp:"textContent element ichidagi matnni o'qish/o'zgartirish uchun ishlatiladi."},
-{lesson:26, q:"Yangi element yaratish uchun qaysi metod ishlatiladi?", opts:["document.createElement()","document.newElement()","document.makeElement()","document.addElement()"], correct:0, exp:"createElement() yangi HTML element obyektini yaratadi."},
-{lesson:27, q:"Elementga bosilganda funksiya ishga tushishi uchun qaysi kod to'g'ri?", opts:["element.addEvent('click', fn)","element.addEventListener('click', fn)","element.onEvent('click', fn)","element.click(fn)"], correct:1, exp:"addEventListener() hodisa (event) tinglovchisini qo'shadi."},
-{lesson:28, q:"Sahifa to'liq yuklanganini aniqlash uchun qaysi hodisa ishlatiladi?", opts:["load","click","change","submit"], correct:0, exp:"load hodisasi sahifa (yoki resurs) to'liq yuklanganda ishga tushadi."},
-{lesson:29, q:"Formani yuborishning oldini olish uchun qaysi metod chaqiriladi?", opts:["event.stop()","event.preventDefault()","event.cancel()","event.block()"], correct:1, exp:"preventDefault() brauzerning standart harakatini (masalan, forma yuborish) to'xtatadi."},
-{lesson:30, q:"Kursni yakunlagandan so'ng keyingi mantiqiy qadam nima bo'lishi mumkin?", opts:["To'xtab qolish","Amaliy loyihalar qilish va DOM/funksiyalarni mustahkamlash","JSni butunlay unutish","Faqat nazariya o'qishda davom etish"], correct:1, exp:"Bilimni mustahkamlashning eng yaxshi yo'li — amaliy kichik loyihalar qilish."},
-];
-
-const WRITE_BANK = [
-{lesson:4, task:"ism va yosh nomli ikkita o'zgaruvchi e'lon qiling (o'zingiznikini yozing) va ularni console.log orqali chiqaring.", sample:'let ism = "Ali";\nlet yosh = 20;\nconsole.log(ism);\nconsole.log(yosh);', exp:"O'zgaruvchi let bilan e'lon qilinadi, teng belgisi orqali qiymat beriladi, satrlar tirnoqda yoziladi."},
-{lesson:6, task:"const yordamida PI degan o'zgaruvchi yarating (qiymati 3.14) va uni o'zgartirishga urinib ko'ring — nima uchun xato berishini bir gap bilan yozing.", sample:'const PI = 3.14;\n// PI = 3.15; // Xato beradi, chunki const qayta yozib bo\'lmaydi', exp:"const bilan e'lon qilingan qiymat dasturning davomida o'zgartirilmaydi."},
-{lesson:7, task:"Ikkita son (a=8, b=3) ustida qo'shish, ayirish, ko'paytirish va qoldiq topish amallarini bajarib, natijalarni chiqaring.", sample:'let a = 8, b = 3;\nconsole.log(a+b); // 11\nconsole.log(a-b); // 5\nconsole.log(a*b); // 24\nconsole.log(a%b); // 2', exp:"+, -, *, % — asosiy arifmetik operatorlar."},
-{lesson:8, task:"ism o'zgaruvchisiga o'z ismingizni yozing va uni katta harflarga o'tkazib chiqaring.", sample:'let ism = "Ali";\nconsole.log(ism.toUpperCase());', exp:"toUpperCase() satrni katta harflarga o'tkazadi."},
-{lesson:9, task:"yosh o'zgaruvchisi 20 bo'lsin. yosh 18 dan katta VA 65 dan kichik ekanligini tekshiruvchi mantiqiy ifodani yozib, natijasini chiqaring.", sample:'let yosh = 20;\nconsole.log(yosh > 18 && yosh < 65); // true', exp:"&& ikkala shart ham to'g'ri bo'lgandagina true qaytaradi."},
-{lesson:11, task:"ikkita sonni qo'shadigan qoshish nomli funksiya yozing va uni 5 va 7 bilan chaqirib natijani chiqaring.", sample:'function qoshish(a, b) {\n  return a + b;\n}\nconsole.log(qoshish(5, 7)); // 12', exp:"function kalit so'zi, parametrlar va return orqali funksiya yaratiladi."},
-{lesson:12, task:"kub nomli arrow function yozing, u sonni kubga oshirsin (x*x*x), va uni 3 bilan sinab ko'ring.", sample:'const kub = (x) => x * x * x;\nconsole.log(kub(3)); // 27', exp:"Arrow function qisqa yozuvda: (parametr) => ifoda."},
-{lesson:14, task:"3 ta mevaning nomi bilan array yarating va uni to'liq console.log qiling.", sample:'let mevalar = ["olma", "banan", "uzum"];\nconsole.log(mevalar);', exp:"Array kvadrat qavs [] ichida, vergul bilan ajratilgan elementlardan iborat."},
-{lesson:15, task:"[1,2,3,4,5] arrayidan faqat juft sonlarni ajratib oling (filter yordamida).", sample:'let sonlar = [1,2,3,4,5];\nlet juftlar = sonlar.filter(x => x % 2 === 0);\nconsole.log(juftlar); // [2, 4]', exp:"filter() shartga (x % 2 === 0) mos elementlarni tanlab, yangi array qaytaradi."},
-{lesson:16, task:"kitob nomli object yarating: nomi, muallifi va sahifalar_soni xususiyatlari bilan, so'ng uni chiqaring.", sample:'let kitob = {\n  nomi: "O\'tkan kunlar",\n  muallifi: "Abdulla Qodiriy",\n  sahifalar_soni: 400\n};\nconsole.log(kitob);', exp:"Object {} ichida kalit:qiymat juftliklari bilan yoziladi."},
-{lesson:18, task:"son nomli o'zgaruvchi qiymati 7 bo'lsin. Agar u 10 dan katta bo'lsa \"Katta\", aks holda \"Kichik\" deb chiqaradigan if/else yozing.", sample:'let son = 7;\nif (son > 10) {\n  console.log("Katta");\n} else {\n  console.log("Kichik");\n}', exp:"if shartni tekshiradi, false bo'lsa else blokiga o'tadi."},
-{lesson:20, task:"1 dan 5 gacha sonlarni for sikli yordamida konsolga chiqaring.", sample:'for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}', exp:"for(boshlang'ich; shart; qadam) sonlarni ketma-ket chop etadi."},
-{lesson:21, task:"while sikli yordamida 5 dan 1 gacha kamayib boradigan sonlarni chiqaring.", sample:'let i = 5;\nwhile (i >= 1) {\n  console.log(i);\n  i--;\n}', exp:"while shart true bo'lguncha ishlaydi, i-- bilan qiymat kamaytiriladi."},
-{lesson:24, task:"id='title' bo'lgan elementni tanlab, uni h1 nomli o'zgaruvchiga saqlang.", sample:"let h1 = document.getElementById('title');", exp:"getElementById() id orqali bitta elementni topib qaytaradi."},
-{lesson:26, task:"Yangi <p> elementi yarating, ichiga matn qo'shing va uni document.body ichiga qo'shing.", sample:"let p = document.createElement('p');\np.textContent = \"Salom!\";\ndocument.body.appendChild(p);", exp:"createElement bilan yaratilib, appendChild bilan sahifaga qo'shiladi."},
-{lesson:27, task:"id='btn' bo'lgan tugmaga bosilganda konsolga \"Bosildi!\" deb chiqaradigan hodisa (event) yozing.", sample:"document.getElementById('btn').addEventListener('click', function() {\n  console.log(\"Bosildi!\");\n});", exp:"addEventListener('click', fn) tugma bosilganda funksiyani ishga tushiradi."},
-];
-</script>
-<script>
 (function(){
   "use strict";
-  const LESSON_TITLES = {
+  // ================= Savollar banki (CDN) =================
+  // Savollar endi faqat tashqi bankdan keladi — index.html ichida QUESTION_BANK yo'q.
+  // Repo: https://github.com/mrdevs2011/js-queastions
+  const Q_BASE = "https://cdn.jsdelivr.net/gh/mrdevs2011/js-queastions@main/";
+  const COURSE_ID = "js-asoslari";
+
+  // Fallback dars nomlari (CDN ishlamasa ham UI ishlasin)
+  let LESSON_TITLES = {
     1:"Kirish",2:"Javascript va uning versiyalari",3:"Salom dunyo!",4:"Qiymatlar va o'zgaruvchilar",
     5:"Ma'lumot turlari",6:"let, const va var",7:"Asosiy operatorlar",8:"String",
     9:"Mantiqiy operatorlar",10:"Turni (type) o'zgartirish",11:"Funksiya va uni e'lon qilish",
@@ -615,6 +564,99 @@ const WRITE_BANK = [
     25:"Elementlarni o'zgartirish",26:"Elementlarni qo'shish va o'chirish",27:"Hodisalar (events)",
     28:"Ko'p uchraydigan hodisalar",29:"DOM bo'yicha amaliyot",30:"Kurs yakuni"
   };
+  let courseIndex = null; // index.json: har dars uchun count
+  const packCache = { mcq: {}, code: {} }; // lesson -> questions[]
+  let bankReady = false;
+  let bankError = null;
+
+  async function loadCourseMeta(){
+    try{
+      const [lessonsRes, indexRes] = await Promise.all([
+        fetch(Q_BASE + "courses/" + COURSE_ID + "/lessons.json"),
+        fetch(Q_BASE + "courses/" + COURSE_ID + "/index.json")
+      ]);
+      if(lessonsRes.ok){
+        const data = await lessonsRes.json();
+        if(data && data.lessons){
+          const mapped = {};
+          Object.keys(data.lessons).forEach(k => { mapped[parseInt(k,10)] = data.lessons[k]; });
+          LESSON_TITLES = Object.assign({}, LESSON_TITLES, mapped);
+        }
+      }
+      if(indexRes.ok){
+        courseIndex = await indexRes.json();
+      }
+      bankReady = true;
+      bankError = null;
+    }catch(e){
+      bankError = e.message || String(e);
+      console.error("Savollar bankini yuklash xatosi:", e);
+    }
+  }
+
+  function lessonPad(n){
+    return String(n).padStart(2, "0");
+  }
+
+  async function fetchPack(type, lesson){
+    if(packCache[type][lesson]) return packCache[type][lesson];
+    const url = Q_BASE + "courses/" + COURSE_ID + "/packs/" + type + "/lesson-" + lessonPad(lesson) + ".json";
+    try{
+      const res = await fetch(url);
+      if(!res.ok){
+        // Ba'zi darslarda pack bo'lmasligi mumkin
+        packCache[type][lesson] = [];
+        return [];
+      }
+      const data = await res.json();
+      const questions = (data.questions || []).map(q => {
+        const item = Object.assign({}, q);
+        item.lesson = data.lesson != null ? data.lesson : lesson;
+        // Ichki kodda write deb ataladi
+        item.type = (type === "code" || data.type === "code") ? "write" : "mcq";
+        return item;
+      });
+      packCache[type][lesson] = questions;
+      return questions;
+    }catch(e){
+      console.error("Pack yuklash xatosi (" + type + " lesson " + lesson + "):", e.message);
+      packCache[type][lesson] = [];
+      return [];
+    }
+  }
+
+  async function loadQuestionsUpTo(maxLesson){
+    const jobs = [];
+    for(let i = 1; i <= maxLesson; i++){
+      jobs.push(fetchPack("mcq", i));
+      jobs.push(fetchPack("code", i));
+    }
+    await Promise.all(jobs);
+    const all = [];
+    for(let i = 1; i <= maxLesson; i++){
+      if(packCache.mcq[i]) all.push(...packCache.mcq[i]);
+      if(packCache.code[i]) all.push(...packCache.code[i]);
+    }
+    return all;
+  }
+
+  function countFromIndex(maxLesson){
+    if(!courseIndex) return null;
+    let n = 0;
+    (courseIndex.mcq || []).forEach(p => { if(p.lesson <= maxLesson) n += (p.count || 0); });
+    (courseIndex.code || []).forEach(p => { if(p.lesson <= maxLesson) n += (p.count || 0); });
+    return n;
+  }
+
+  function availableFromCache(maxLesson){
+    const all = [];
+    for(let i = 1; i <= maxLesson; i++){
+      if(packCache.mcq[i]) all.push(...packCache.mcq[i]);
+      if(packCache.code[i]) all.push(...packCache.code[i]);
+    }
+    return all;
+  }
+
   const STUDENT_NAME = "MR";
 
   // ================= Groq API Key =================
@@ -945,19 +987,23 @@ const WRITE_BANK = [
   const resultArea = document.getElementById('resultArea');
 
   function availableQuestions(lesson){
-    const mcq = QUESTION_BANK.filter(q => q.lesson <= lesson).map(q => Object.assign({type:'mcq'}, q));
-    const write = WRITE_BANK.filter(q => q.lesson <= lesson).map(q => Object.assign({type:'write'}, q));
-    return mcq.concat(write);
+    // Cache'dan (yuklangan packlar); bo'sh bo'lsa index.json count ishlatiladi
+    const cached = availableFromCache(lesson);
+    if(cached.length) return cached;
+    return [];
   }
   function syncSetup(v){
     v = Math.max(1, Math.min(30, parseInt(v)||1));
     lessonNum.value = v; lessonRange.value = v;
-    lessonName.textContent = v + ". " + LESSON_TITLES[v];
+    lessonName.textContent = v + ". " + (LESSON_TITLES[v] || ("Dars " + v));
     topicCount.textContent = v;
-    availCount.textContent = availableQuestions(v).length;
-    qCountInput.max = Math.max(5, availableQuestions(v).length);
-    if(parseInt(qCountInput.value) > availableQuestions(v).length){
-      qCountInput.value = availableQuestions(v).length;
+    const fromIndex = countFromIndex(v);
+    const fromCache = availableFromCache(v).length;
+    const total = fromCache > 0 ? fromCache : (fromIndex != null ? fromIndex : 0);
+    availCount.textContent = total;
+    qCountInput.max = Math.max(5, total || 60);
+    if(total > 0 && parseInt(qCountInput.value) > total){
+      qCountInput.value = total;
     }
     return v;
   }
@@ -967,6 +1013,10 @@ const WRITE_BANK = [
   loadProfile();
   loadStudentProfile();
   loadActivityLog().then(renderActivityPanel);
+  // CDN bank meta + dars nomlarini yuklash
+  loadCourseMeta().then(() => {
+    currentLesson = syncSetup(currentLesson);
+  });
 
   function shuffle(arr){
     const a = arr.slice();
@@ -1009,21 +1059,51 @@ const WRITE_BANK = [
   const hintBtn = document.getElementById('hintBtn');
   const hintBox = document.getElementById('hintBox');
 
-  function startTest(){
-    const pool = availableQuestions(currentLesson);
-    const mcqPool = pool.filter(q=>q.type==='mcq');
-    const writePool = pool.filter(q=>q.type==='write');
-    const n = Math.min(parseInt(qCountInput.value)||20, pool.length);
-    const writeTarget = Math.min(writePool.length, Math.max(1, Math.round(n/4)));
-    const chosenWrite = weightedSample(writePool, writeTarget);
-    const chosenMcq = weightedSample(mcqPool, n - chosenWrite.length);
-    testQuestions = shuffle(chosenMcq.concat(chosenWrite));
-    qi = 0; correctCount = 0; wrongByLesson = {};
-    setupArea.classList.add('hide');
-    resultArea.classList.remove('show');
-    testArea.classList.add('show');
-    logActivity('test', 0);
-    renderQuestion();
+  async function startTest(){
+    startBtn.disabled = true;
+    const prevLabel = startBtn.textContent;
+    startBtn.textContent = "Savollar yuklanmoqda...";
+
+    try{
+      if(!bankReady){
+        await loadCourseMeta();
+      }
+      const pool = await loadQuestionsUpTo(currentLesson);
+      if(!pool.length){
+        alert("Savollar yuklanmadi. Internetni tekshirib, qayta urinib ko'ring." + (bankError ? "\n" + bankError : ""));
+        startBtn.disabled = false;
+        startBtn.textContent = prevLabel;
+        return;
+      }
+      // UI dagi sonni yangilab qo'yamiz
+      syncSetup(currentLesson);
+
+      const mcqPool = pool.filter(q=>q.type==='mcq');
+      const writePool = pool.filter(q=>q.type==='write');
+      const n = Math.min(parseInt(qCountInput.value)||20, pool.length);
+      const writeTarget = Math.min(writePool.length, Math.max(0, Math.round(n/4)));
+      const chosenWrite = weightedSample(writePool, writeTarget);
+      const chosenMcq = weightedSample(mcqPool, Math.max(0, n - chosenWrite.length));
+      testQuestions = shuffle(chosenMcq.concat(chosenWrite));
+      if(!testQuestions.length){
+        alert("Tanlangan dars uchun savol topilmadi.");
+        startBtn.disabled = false;
+        startBtn.textContent = prevLabel;
+        return;
+      }
+      qi = 0; correctCount = 0; wrongByLesson = {};
+      setupArea.classList.add('hide');
+      resultArea.classList.remove('show');
+      testArea.classList.add('show');
+      logActivity('test', 0);
+      renderQuestion();
+    }catch(e){
+      console.error(e);
+      alert("Savollarni yuklashda xatolik: " + (e.message || e));
+    } finally {
+      startBtn.disabled = false;
+      startBtn.textContent = prevLabel;
+    }
   }
 
   function renderQuestion(){
