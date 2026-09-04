@@ -126,6 +126,15 @@
   .panel{ background:linear-gradient(180deg, var(--bg2), rgba(15,22,32,0.5)); border:1px solid var(--line);
     border-radius:14px; padding:18px; margin-bottom:16px; }
 
+  /* Light rejimda gradientning pastki qismi qattiq-kodlangan rgba(15,22,32,0.5)
+     (qorong'i rang) bo'lib qolardi, chunki u theme variable emas edi — shu sabab
+     har bir panel tepasi oq, pasti qorong'i-kulrang bo'lib "aralashib" ko'rinardi.
+     Light rejimda gradientni butunlay olib tashlaymiz, panel bir xil oq bo'ladi. */
+  :root[data-theme="light"] .panel,
+  :root[data-theme="light"] .chat-shell{
+    background: var(--bg2);
+  }
+
   .lesson-picker{ display:flex; flex-direction:column; gap:10px; }
   .lesson-picker .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .lesson-picker label{ font-size:13px; color:var(--dim); min-width:150px; }
@@ -859,7 +868,7 @@
     return p(d.getHours()) + ':' + p(d.getMinutes());
   }
   function recordTestSession(session){
-    // session: {ts, date, time, lesson, total, correct, pct, weak:[{l,n}], misses:[{lesson,type,id?}]}
+    // session: {ts, date, time, lesson, total, correct, pct, weak:[{l,n}], misses:[{lesson,type,id?}], isRetryOfSame?}
     testHistory.push(session);
     if(testHistory.length > TEST_HISTORY_MAX){
       testHistory = testHistory.slice(testHistory.length - TEST_HISTORY_MAX);
@@ -875,7 +884,8 @@
     const recent = sorted.slice(-8);
     const lines = recent.map(s => {
       const weak = (s.weak || []).slice(0,4).map(w => `L${w.l}×${w.n}`).join(',') || 'xato yoq';
-      return `${s.date||'?'} ${s.time||''} dars${s.lesson}: ${s.correct}/${s.total} (${s.pct}%) zaif:[${weak}]`.trim();
+      const retryTag = s.isRetryOfSame ? ' [XUDDI SHU SAVOLLAR QAYTA YECHILDI]' : '';
+      return `${s.date||'?'} ${s.time||''} dars${s.lesson}: ${s.correct}/${s.total} (${s.pct}%) zaif:[${weak}]${retryTag}`.trim();
     });
     const last = sorted[sorted.length-1];
     // Trend: oxirgi 3 vs oldingi 3 o'rtacha foiz
@@ -1277,6 +1287,13 @@
   // Xato qilingan savollarning to'liq obyektlari — "Xato qilganlarim" bo'limi va qayta yechish uchun
   let sessionMissQuestions = []; // [{q}]
   let testStartedAt = 0;
+  // Oxirgi tugagan testning aynan shu savollari, aynan shu tartibda — "Yana test
+  // yechish" tugmasi shu massivni qayta ishlatadi (random emas). "Xatolarni qayta
+  // yechish" tugmasi bilan aralashtirmaslik kerak — u faqat xato savollarni oladi.
+  let lastFinishedTestQuestions = [];
+  // showResult() chaqirilganda shu sessiya "Yana test yechish" orqali ochilgan
+  // aynan-shu-savollar takrori ekanini AI'ga bildirish uchun bayroq.
+  let wasRetrySameSet = false;
 
   const qTag = document.getElementById('qTag');
   const qIdx = document.getElementById('qIdx');
@@ -1320,6 +1337,9 @@
         startBtn.textContent = prevLabel;
         return;
       }
+      // Yangi (random) test boshlanmoqda — bu "Yana test yechish" orqali kelgan
+      // takror emas, demak bayroqni tozalab qo'yamiz.
+      wasRetrySameSet = false;
       qi = 0; correctCount = 0; wrongByLesson = {};
       sessionMisses = [];
       sessionMissQuestions = [];
@@ -1738,6 +1758,10 @@ Vazifang: to'g'ri javobni AYTMASDAN, o'quvchini to'g'ri fikrlash yo'liga solib q
     const weakItems = document.getElementById('weakItems');
     const entries = Object.entries(wrongByLesson).sort((a,b)=>b[1]-a[1]);
 
+    // Bu test tugagach — aynan shu savollarni "Yana test yechish" tugmasi
+    // orqali qayta ishlatish uchun saqlab qo'yamiz (nusxa, referens emas).
+    lastFinishedTestQuestions = testQuestions.slice();
+
     // Test sessiyasini Firestore (va local) ga yozamiz — AI chat shuni ko'radi
     const now = new Date();
     const weakCompact = entries.slice(0, 6).map(([l,c]) => ({ l: parseInt(l,10), n: c }));
@@ -1759,8 +1783,12 @@ Vazifang: to'g'ri javobni AYTMASDAN, o'quvchini to'g'ri fikrlash yo'liga solib q
       correct: correctCount,
       pct: pct,
       weak: weakCompact,
-      misses: missesCompact
+      misses: missesCompact,
+      isRetryOfSame: wasRetrySameSet
     });
+    // Yozib bo'lgach bayroqni tozalaymiz — keyingi test (agar u ham "Yana test
+    // yechish" orqali bo'lmasa) qayta random hisoblanishi kerak.
+    wasRetrySameSet = false;
     if(entries.length){
       weakList.style.display = 'block';
       weakItems.innerHTML = entries.map(([lesson,count])=>
@@ -1824,6 +1852,7 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
   function startMissedRetry(){
     if(!sessionMissQuestions.length) return;
     const pool = sessionMissQuestions.map(m=>m.q);
+    wasRetrySameSet = false; // bu random-tartibli xato-savollar testi, "aynan shu test" takrori emas
     testQuestions = shuffle(pool.slice());
     qi = 0; correctCount = 0; wrongByLesson = {};
     sessionMisses = [];
@@ -1836,11 +1865,26 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
     renderQuestion();
   }
 
-  startBtn.addEventListener('click', startTest);
-  document.getElementById('retryBtn').addEventListener('click', ()=>{
+  // "Yana test yechish" — oxirgi tugagan testning AYNAN o'sha savollarini,
+  // aynan o'sha tartibda qayta boshlaydi (random emas). Boshqa barcha holatlarda
+  // (startTest — "Testni boshlash" tugmasi) savollar hamon random tanlanadi.
+  function startSameRetry(){
+    if(!lastFinishedTestQuestions.length) return;
+    wasRetrySameSet = true;
+    testQuestions = lastFinishedTestQuestions.slice(); // nusxa, aynan shu tartib
+    qi = 0; correctCount = 0; wrongByLesson = {};
+    sessionMisses = [];
+    sessionMissQuestions = [];
+    testStartedAt = Date.now();
     resultArea.classList.remove('show');
-    setupArea.classList.remove('hide');
-  });
+    setupArea.classList.add('hide');
+    testArea.classList.add('show');
+    logActivity('test', 0);
+    renderQuestion();
+  }
+
+  startBtn.addEventListener('click', startTest);
+  document.getElementById('retryBtn').addEventListener('click', startSameRetry);
   document.getElementById('retryMissedBtn').addEventListener('click', startMissedRetry);
 
   // ================= View navigation =================
@@ -1913,8 +1957,9 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
     if(th.hasHistory && th.last){
       const last = th.last;
       const lastWeak = (last.weak || []).slice(0,4).map(w => `dars ${w.l} (${LESSON_TITLES[w.l]||'?'}) ×${w.n}`).join(', ') || "xato yo'q";
+      const lastRetryNote = last.isRetryOfSame ? " (bu — o'quvchi 'Yana test yechish' orqali AYNAN oldingi test savollarini takror yechgan, yangi savollar emas)" : "";
       testBlock =
-        `- Oxirgi test: ${last.date} ${last.time||''} — dars ${last.lesson} gacha, ${last.correct}/${last.total} (${last.pct}%), zaif: ${lastWeak}` +
+        `- Oxirgi test: ${last.date} ${last.time||''} — dars ${last.lesson} gacha, ${last.correct}/${last.total} (${last.pct}%), zaif: ${lastWeak}${lastRetryNote}` +
         `\n- ${th.todayLine}` +
         (th.trend ? `\n- Trend: ${th.trend}` : "") +
         `\n- So'nggi testlar (qisqa): ${th.text}` +
@@ -1936,6 +1981,7 @@ USLUB QOIDALARI (har biriga qat'iy amal qil):
    - Yaxshi misol: "6/10. If/else va funksiyada yiqilding. Qayta o'qi."
    - Yomon misol: uzun sanab o'tish, dars raqamlarini ko'p aytish, "keyingi testdan oldin chuqurroq o'rgan" deb cho'zish.
    - Tafsilot kerak bo'lsa o'quvchi o'zi so'raydi.
+   - Agar test "AYNAN oldingi test savollarini takror yechgan" deb belgilangan bo'lsa — buni bil va agar natija oldingisidan yaxshi bo'lmasa, ayni shu savollarni yana xato qilganini qattiqroq tanbeh qil (masalan "xuddi o'sha savollarda yana yiqilding — bu ustira o'rganmaganingni ko'rsatadi").
 
 KONTEKST (bil, lekin o'zing to'kib solma):
 - Hozirgi dars: ${currentTopic}
