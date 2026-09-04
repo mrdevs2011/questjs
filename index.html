@@ -6,6 +6,48 @@
 <title>JS Bilim Testi — Javascript asoslari</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getAuth, signInAnonymously, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDDSLRNXfsNU1ERCTzVhk4XPmtuyvneBIQ",
+    authDomain: "questjs-58d69.firebaseapp.com",
+    projectId: "questjs-58d69",
+    storageBucket: "questjs-58d69.firebasestorage.app",
+    messagingSenderId: "805717041244",
+    appId: "1:805717041244:web:41f2ec7cb367d177778699",
+    measurementId: "G-D4SEWMC12K"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+  const auth = getAuth(fbApp);
+
+  // Anonim auth: har bir qurilma o'z uid'ini oladi, login shart emas.
+  // uid tayyor bo'lguncha kutadigan promise — asosiy skript shuni await qiladi.
+  let resolveUid;
+  window.__uidReady = new Promise(res => { resolveUid = res; });
+
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      window.__firebaseUid = user.uid;
+      resolveUid(user.uid);
+    }
+  });
+  signInAnonymously(auth).catch(err => {
+    console.error("Firebase anonim auth xatosi:", err);
+    resolveUid(null); // auth ishlamasa ham, ilova localStorage fallback bilan ishlashda davom etsin
+  });
+
+  // Global obyekt sifatida chiqaramiz, chunki asosiy skript module emas (oddiy <script>)
+  window.__firestore = { db, doc, getDoc, setDoc, deleteDoc, collection, getDocs };
+</script>
 <style>
   :root{
     --bg:#0b0f14; --bg2:#0f1620; --panel:#121a24; --line:#1e2a37;
@@ -279,51 +321,6 @@
     #view-home.active, #view-tests.active{ padding:16px 16px 24px; }
     #view-chat.active{ padding:10px 10px 10px; }
   }
-/* Import/Export tugmalari uchun */
-.import-export-panel {
-  margin-top: 16px;
-  border-color: rgba(126, 231, 135, 0.2);
-}
-.import-export-panel h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
-  color: var(--accent);
-}
-.import-export-panel p {
-  margin: 0 0 12px;
-  color: var(--dim);
-  font-size: 13px;
-}
-.import-export-btns {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.import-export-btns button {
-  flex: 1;
-  min-width: 140px;
-}
-.btn-export {
-  background: rgba(126, 231, 135, 0.1);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.btn-export:hover {
-  background: rgba(126, 231, 135, 0.2);
-}
-.btn-import {
-  background: rgba(88, 166, 255, 0.1);
-  border-color: var(--accent2);
-  color: var(--accent2);
-}
-.btn-import:hover {
-  background: rgba(88, 166, 255, 0.2);
-}
-.import-status {
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--dim);
-}
   /* Settings view */
   .settings-form{ display:flex; flex-direction:column; gap:16px; max-width:600px; }
   .settings-form label{ font-size:13.5px; color:var(--dim); display:block; margin-bottom:6px; }
@@ -365,7 +362,7 @@
     <button class="nav-item" data-view="settings"><span class="ico">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
     </span><span>Sozlamalar</span></button>
-    <div class="sidebar-foot">Progress shu qurilmada saqlanadi</div>
+    <div class="sidebar-foot">Progress bulutda (Firestore) saqlanadi</div>
   </nav>
 <div id="app" class="on-home">
   <header>
@@ -536,22 +533,11 @@
         <div id="apiStatus" style="font-size:13px; color:var(--dim);"></div>
       </div>
     </div>
-          <!-- ===== IMPORT/EXPORT ===== -->
-      <div class="panel import-export-panel">
-        <h3> Ma'lumotlarni import/export</h3>
-        <p>Barcha ma'lumotlaringizni (profil, XP, chat tarixi, faollik jurnali, o'quvchi profili) JSON fayl sifatida eksport qiling yoki boshqa qurilmada import qiling.</p>
-        <div class="import-export-btns">
-          <button class="btn-export" id="exportDataBtn">⬇ Export Data</button>
-          <button class="btn-import" id="importDataBtn">⬆ Import Data</button>
-        </div>
-        <input type="file" id="importFileInput" accept=".json" style="display:none;">
-        <div class="import-status" id="importStatus"></div>
-      </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
-  <footer>Progressingiz (daraja, XP, ketma-ketlik, faollik) shu qurilmada avtomatik saqlanadi</footer>
+  <footer>Progressingiz (daraja, XP, ketma-ketlik, faollik) bulutda avtomatik saqlanadi</footer>
 </div>
 </div>
 
@@ -633,19 +619,70 @@ const WRITE_BANK = [
   function getGroqKey(){ return localStorage.getItem(GROQ_KEY) || ''; }
   function setGroqKey(key){ localStorage.setItem(GROQ_KEY, key); }
 
-  // ================= localStorage wrapper =================
+  // ================= Firestore-backed storage =================
+  // Ma'lumotlar endi Firestore'da saqlanadi: users/{uid}/data/{key}
+  // localStorage faqat fallback sifatida qoladi — internet yo'q yoki
+  // Firebase auth ishlamay qolgan holatlarda ilova butunlay o'lib qolmasin.
+  const FIRESTORE_COLLECTION = 'data';
+  let cachedUid = null;
+
+  async function getUid(){
+    if(cachedUid) return cachedUid;
+    cachedUid = await window.__uidReady;
+    return cachedUid;
+  }
+
+  function userDocRef(uid, key){
+    const { db, doc } = window.__firestore;
+    return doc(db, 'users', uid, FIRESTORE_COLLECTION, key);
+  }
+
   const storage = {
     async get(key){
+      const uid = await getUid();
+      if(uid){
+        try{
+          const { getDoc } = window.__firestore;
+          const snap = await getDoc(userDocRef(uid, key));
+          if(snap.exists()){
+            const value = snap.data().value;
+            localStorage.setItem(key, value); // local cache sifatida ham saqlaymiz
+            return { key, value };
+          }
+          return null;
+        }catch(e){
+          console.error("Firestore get xatosi (" + key + "):", e.message);
+          // Firestore ishlamasa, localStorage'ga tushamiz
+        }
+      }
       const value = localStorage.getItem(key);
       if(value === null) return null;
       return { key, value };
     },
     async set(key, value){
-      localStorage.setItem(key, value);
+      localStorage.setItem(key, value); // darhol local'ga yozamiz, UI kutmasin
+      const uid = await getUid();
+      if(uid){
+        try{
+          const { setDoc } = window.__firestore;
+          await setDoc(userDocRef(uid, key), { value, updatedAt: Date.now() });
+        }catch(e){
+          console.error("Firestore set xatosi (" + key + "):", e.message);
+        }
+      }
       return { key, value };
     },
     async delete(key){
       localStorage.removeItem(key);
+      const uid = await getUid();
+      if(uid){
+        try{
+          const { deleteDoc } = window.__firestore;
+          await deleteDoc(userDocRef(uid, key));
+        }catch(e){
+          console.error("Firestore delete xatosi (" + key + "):", e.message);
+        }
+      }
     }
   };
 
@@ -1170,7 +1207,53 @@ async function callGroq(messages, options = {}) {
   content = content.replace(/\n{3,}/g, '\n\n');
   content = content.trim();
 
+  // Safety net: model prompt-ni buzib, butun gapni CAPS bilan yozsa,
+  // avtomatik pastga tushiramiz. Faqat 4+ harfli, kamida 70% harfi katta
+  // bo'lgan so'zlar to'planib butun matnni CAPS qilgan holatni ushlaydi —
+  // kod bloklari va qisqartmalarga (JS, DOM, API kabi) tegmaydi.
+  if (options.autoLowercase !== false) {
+    content = smartFixShouting(content);
+  }
+
   return content;
+}
+
+function smartFixShouting(text){
+  // Kod bloklarini vaqtincha chetlab o'tamiz, ularga tegmaymiz
+  const codeBlocks = [];
+  let safeText = text.replace(/```[\s\S]*?```/g, (m) => {
+    codeBlocks.push(m);
+    return `__CODEBLOCK_${codeBlocks.length-1}__`;
+  });
+
+  const words = safeText.split(/(\s+)/);
+  let upperWordCount = 0, totalWordCount = 0;
+  words.forEach(w => {
+    const letters = w.replace(/[^a-zA-ZА-Яа-яЎўҚқҒғҲҳ]/g, '');
+    if(letters.length >= 4){
+      totalWordCount++;
+      if(letters === letters.toUpperCase()) upperWordCount++;
+    }
+  });
+
+  // Agar so'zlarning 50%+ i CAPS bo'lsa — bu "shouting", tuzatamiz
+  if(totalWordCount > 0 && (upperWordCount / totalWordCount) > 0.5){
+    safeText = safeText.replace(/[a-zA-ZА-Яа-яЎўҚқҒғҲҳ']+/g, (word) => {
+      if(word.length <= 3) return word; // qisqartma bo'lishi mumkin (JS, DOM)
+      const first = word.charAt(0).toUpperCase();
+      const rest = word.slice(1).toLowerCase();
+      return first + rest;
+    });
+    // Har bir gapning boshini yana katta harf bilan tuzatib qo'yamiz
+    safeText = safeText.replace(/(^\s*[a-zа-я]|[.!?]\s+[a-zа-я])/g,
+      m => m.toUpperCase());
+  }
+
+  codeBlocks.forEach((block, i) => {
+    safeText = safeText.replace(`__CODEBLOCK_${i}__`, block);
+  });
+
+  return safeText;
 }
 async function checkWrite(userCode, q, retryWrap, checkBtn){
   if(!userCode.trim()){ alert("Avval kodingizni yozing."); return; }
@@ -1399,7 +1482,7 @@ USLUB QOIDALARI (har biriga qat'iy amal qil, faqat bir marta o'qi, yetarli):
 1. O'quvchiga doim "sen" deb murojaat qil, "siz" emas.
 2. Javoblaring qisqa bo'lsin — 2-4 gap, ortiqcha cho'zma.
 3. Ohang: jahldor, tanqidiy, intizomli — lekin haqorat, kamsitish yoki tahqirlash YO'Q. Qattiqlik bilan hurmatsizlik orasidagi chegarani saqla.
-4. Butun xabarni KATTA HARFLAR bilan yozma. Urg'u berish uchun bitta-ikkita so'zni katta harf bilan yozishing mumkin, lekin bu qoidadan emas, istisno bo'lsin.
+4. TAQIQ: butun so'z yoki butun gapni katta harflar bilan yozish MUTLAQO MAN ETILGAN, istisnosiz. Faqat oddiy kichik harflar bilan, normal grammatika bilan yoz — xuddi jahli chiqqan odam ovozini ko'tarib gapirgandek emas, past ovozda lekin qat'iy va sovuq tarzda gapirgandek yoz. Jahldorlik so'z tanlovi va ohang orqali ifodalansin (masalan: "Bu qanaqa javob o'zi. Yana bir bor o'yla." kabi), harflar balandligi orqali emas.
 5. Markdown belgilar (**, #, va h.k.) ishlatma — oddiy matn yoz.
 6. Sen — real o'qituvchisan, ChatGPT yoki AI degan gapga "o'qitganman, bilaman, savolga qayt" tarzida qisqa javob ber va mavzuga qayt.
 
@@ -1419,7 +1502,7 @@ USLUB QOIDALARI:
 1. O'quvchiga doim "sen" deb murojaat qil, "siz" emas.
 2. Javoblaring qisqa bo'lsin — 2-4 gap.
 3. Ohang: jahldor, talabchan — lekin haqorat yo'q.
-4. Butun xabarni katta harflar bilan yozma.
+4. TAQIQ: butun so'z yoki gapni katta harflar bilan yozish MUTLAQO MAN ETILGAN. Faqat kichik harflar, normal grammatika bilan yoz. Jahldorlik so'z tanlovi orqali ifodalansin, harflar balandligi orqali emas.
 5. Markdown ishlatma.
 6. Sen real o'qituvchisan, AI/ChatGPT degan gapga "o'qitganman, bilaman, savolga qayt" deb qisqa javob ber.
 
@@ -1991,85 +2074,6 @@ ${conversationText}`;
       apiStatus.textContent = "Xatolik: " + e.message;
       apiStatus.style.color = "var(--danger)";
     }
-  });
-
-  // ================= Import/Export Data =================
-  function exportAllData(){
-    try{
-      const data = {
-        version: "1.1",
-        exportedAt: new Date().toISOString(),
-        profile: JSON.parse(localStorage.getItem(PROFILE_KEY) || '{"xp":0,"level":1,"streak":0,"bestStreak":0,"history":{}}'),
-        studentProfile: JSON.parse(localStorage.getItem(STUDENT_PROFILE_KEY) || '{"onboarded":false,"facts":{},"lastSeenAt":null}'),
-        chatSessions: JSON.parse(localStorage.getItem(CHAT_SESSIONS_KEY) || '[]'),
-        activityLog: JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY) || '[]')
-      };
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `quest-teacher-backup-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      showToast("✅ Ma'lumotlar eksport qilindi!");
-      document.getElementById('importStatus').textContent = "✅ Eksport muvaffaqiyatli!";
-      document.getElementById('importStatus').style.color = "var(--accent)";
-    }catch(e){
-      document.getElementById('importStatus').textContent = "❌ Eksport xatosi: " + e.message;
-      document.getElementById('importStatus').style.color = "var(--danger)";
-    }
-  }
-
-  function importAllData(file){
-    const reader = new FileReader();
-    reader.onload = function(e){
-      try{
-        const data = JSON.parse(e.target.result);
-
-        if(!data.version || !data.profile || !data.studentProfile){
-          throw new Error("Noto'g'ri fayl formati!");
-        }
-
-        localStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
-        localStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(data.studentProfile));
-        if(data.chatSessions) localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(data.chatSessions));
-        if(data.activityLog) localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(data.activityLog));
-
-        profile = data.profile;
-        studentProfile = data.studentProfile;
-        chatSessions = data.chatSessions || [];
-        activityLog = data.activityLog || [];
-
-        renderProfile();
-        renderActivityPanel();
-        if(chatLoaded){
-          renderSessionList();
-          renderAllChat();
-        }
-
-        document.getElementById('importStatus').textContent = "✅ Import muvaffaqiyatli! Sahifa yangilanmoqda...";
-        document.getElementById('importStatus').style.color = "var(--accent)";
-        showToast("✅ Ma'lumotlar import qilindi!");
-
-        setTimeout(() => location.reload(), 1500);
-      }catch(err){
-        document.getElementById('importStatus').textContent = "❌ Import xatosi: " + err.message;
-        document.getElementById('importStatus').style.color = "var(--danger)";
-        showToast("❌ Import xatosi!");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  document.getElementById('exportDataBtn').addEventListener('click', exportAllData);
-  document.getElementById('importDataBtn').addEventListener('click', function(){
-    document.getElementById('importFileInput').click();
-  });
-  document.getElementById('importFileInput').addEventListener('change', function(){
-    if(this.files && this.files[0]) importAllData(this.files[0]);
-    this.value = '';
   });
 
 })();
