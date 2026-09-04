@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  // Sahifa render bo'lishidan OLDIN ishlaydi — aks holda avval dark rejim
+  // chizilib, keyin light'ga "miltillab" o'tib ketardi (FOUC). Shu sabab bu
+  // <head> ning eng boshida, boshqa hech narsadan oldin turishi shart.
+  (function(){
+    try{
+      if(localStorage.getItem('quest-theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
 <title>JS Bilim Testi — Javascript asoslari</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -25,28 +37,38 @@
     measurementId: "G-D4SEWMC12K"
   };
 
-  const fbApp = initializeApp(firebaseConfig);
-  const db = getFirestore(fbApp);
-  const auth = getAuth(fbApp);
-
   // Anonim auth: har bir qurilma o'z uid'ini oladi, login shart emas.
   // uid tayyor bo'lguncha kutadigan promise — asosiy skript shuni await qiladi.
   let resolveUid;
   window.__uidReady = new Promise(res => { resolveUid = res; });
 
-  onAuthStateChanged(auth, (user) => {
-    if(user){
-      window.__firebaseUid = user.uid;
-      resolveUid(user.uid);
-    }
-  });
-  signInAnonymously(auth).catch(err => {
-    console.error("Firebase anonim auth xatosi:", err);
-    resolveUid(null); // auth ishlamasa ham, ilova localStorage fallback bilan ishlashda davom etsin
-  });
+  // Butun Firebase init try/catch ichida — agar bu yerda biror narsa (masalan
+  // tarmoq CSP, adblocker, noto'g'ri config) xato bersa, resolveUid(null) baribir
+  // chaqiriladi. Aks holda window.__uidReady abadiy "pending" holatda qolib,
+  // uni await qiladigan asosiy skript butunlay to'xtab qolgan bo'lardi.
+  try{
+    const fbApp = initializeApp(firebaseConfig);
+    const db = getFirestore(fbApp);
+    const auth = getAuth(fbApp);
 
-  // Global obyekt sifatida chiqaramiz, chunki asosiy skript module emas (oddiy <script>)
-  window.__firestore = { db, doc, getDoc, setDoc, deleteDoc, collection, getDocs };
+    onAuthStateChanged(auth, (user) => {
+      if(user){
+        window.__firebaseUid = user.uid;
+        resolveUid(user.uid);
+      }
+    });
+    signInAnonymously(auth).catch(err => {
+      console.error("Firebase anonim auth xatosi:", err);
+      resolveUid(null); // auth ishlamasa ham, ilova localStorage fallback bilan ishlashda davom etsin
+    });
+
+    // Global obyekt sifatida chiqaramiz, chunki asosiy skript module emas (oddiy <script>)
+    window.__firestore = { db, doc, getDoc, setDoc, deleteDoc, collection, getDocs };
+  }catch(err){
+    console.error("Firebase init xatosi — ilova offline (localStorage) rejimida ishlaydi:", err);
+    window.__firestore = null;
+    resolveUid(null);
+  }
 </script>
 <style>
   :root{
@@ -54,10 +76,30 @@
     --text:#d7e1ea; --dim:#7c8fa3; --accent:#7ee787; --accent2:#58a6ff;
     --danger:#ff6b6b; --gold:#f0b429;
   }
+  /* Kunduzgi rejim — faqat asosiy fon/matn/chegara ranglari almashadi.
+     Accent ranglar (yashil/ko'k/oltin/qizil) ham to'qroq soyaga o'zgaradi,
+     chunki ular oq fonda matn sifatida ishlatiladi (masalan .tier-senior)
+     va och pastel rang WCAG kontrast talabidan o'tmaydi. Kod-terminal
+     bloklari ataylab bu yerga kirmaydi — ular doim to'q qoladi (real
+     IDE'lardagi kabi), chunki syntax-highlight ranglari faqat qora fonda
+     to'g'ri ko'rinadi. */
+  :root[data-theme="light"]{
+    --bg:#f4f6f9; --bg2:#ffffff; --panel:#ffffff; --line:#dde3ea;
+    --text:#1c2b3a; --dim:#5b6b7c; --accent:#1f9d55; --accent2:#1f66e0;
+    --danger:#d92d2d; --gold:#a8790a;
+  }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
-    font-family:'Space Grotesk', system-ui, sans-serif; overflow:hidden; }
+    font-family:'Space Grotesk', system-ui, sans-serif; overflow:hidden;
+    transition:background-color .25s ease, color .25s ease; }
   .mono{ font-family:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+  /* Theme almashganda fon/border/matn ranglari sakramasdan, silliq o'tishi uchun.
+     Faqat shu xossalar — layout'ga ta'sir qiluvchi width/height kabi narsalarga
+     transition qo'yilmagan, aks holda UI "elastik" his qilinardi. */
+  .panel, .opt, button, .weak-list, .teacher-msg, .stat, input, .code-editor,
+  .code-input-editor, .level-badge, .streak-badge, .qhead .tag, .explain{
+    transition:background-color .25s ease, border-color .25s ease, color .25s ease;
+  }
 
   #app{ width:100%; margin:0; padding:0; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
   #app > header{ max-width:980px; width:100%; margin:0 auto; padding:20px 24px 0; flex-shrink:0; }
@@ -175,7 +217,11 @@
   .xp-bar{ height:100%; background:linear-gradient(90deg, var(--accent2), var(--accent)); width:0%; transition:width .4s ease; }
   .level-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:2px; }
   .level-badge{ font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--gold); background:rgba(240,180,41,0.1);
-    border:1px solid rgba(240,180,41,0.3); padding:3px 10px; border-radius:999px; }
+    border:1px solid rgba(240,180,41,0.3); padding:3px 10px; border-radius:999px; transition:color .3s, background .3s, border-color .3s; }
+  .level-badge.tier-junior{ color:var(--accent2); background:rgba(88,166,255,0.1); border-color:rgba(88,166,255,0.3); }
+  .level-badge.tier-middle{ color:var(--gold); background:rgba(240,180,41,0.1); border-color:rgba(240,180,41,0.3); }
+  .level-badge.tier-senior{ color:var(--accent); background:rgba(126,231,135,0.12); border-color:rgba(126,231,135,0.35);
+    box-shadow:0 0 10px rgba(126,231,135,0.15); }
   .xp-num{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--dim); }
   .streak-badge{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:#ff9d4d; background:rgba(255,157,77,0.1);
     border:1px solid rgba(255,157,77,0.3); padding:3px 10px; border-radius:999px; }
@@ -196,6 +242,7 @@
     border:1px solid var(--accent); color:var(--accent); padding:10px 18px; border-radius:999px; font-family:'JetBrains Mono', monospace;
     font-size:13px; opacity:0; transition:opacity .3s ease, transform .3s ease; z-index:50; pointer-events:none; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.danger{ border-color:var(--danger); color:var(--danger); }
 
   .shell{ display:flex; height:100vh; width:100vw; overflow:hidden; }
   .sidebar{ width:220px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--line);
@@ -333,6 +380,7 @@
   .settings-form .hint{ font-size:12px; color:var(--dim); margin-top:4px; }
   .settings-form .row{ display:flex; gap:10px; align-items:center; }
   .settings-form .row button{ width:auto; }
+  .theme-btn.active{ border-color:var(--accent); color:var(--accent); background:rgba(126,231,135,0.08); }
 
   /* Activity log panel */
   .activity-panel .stat-row{ margin-top:10px; }
@@ -375,7 +423,7 @@
 
   <div class="panel" id="profilePanel">
     <div class="level-row">
-      <span class="level-badge" id="levelBadge">Daraja 1</span>
+      <span class="level-badge tier-junior" id="levelBadge">Junior · Daraja 1</span>
       <span class="streak-badge" id="streakBadge">0 ketma-ket to'g'ri</span>
       <span class="xp-num" id="xpNum">0 / 100 XP</span>
     </div>
@@ -515,6 +563,11 @@
       <h4>Qaytadan ko'rib chiqish tavsiya etiladigan darslar</h4>
       <div id="weakItems"></div>
     </div>
+    <div class="weak-list" id="missList" style="display:none;">
+      <h4>Xato qilgan savollaringiz</h4>
+      <div id="missItems"></div>
+      <button class="ghost" id="retryMissedBtn" style="width:100%; margin-top:10px;">Xatolarni qayta yechish (<span id="missCount">0</span> ta)</button>
+    </div>
     <button class="primary" id="retryBtn">Yana test yechish</button>
   </div>
   </div>
@@ -534,6 +587,15 @@
           <button class="ghost" id="testApiBtn" style="width:auto;">Test qilish</button>
         </div>
         <div id="apiStatus" style="font-size:13px; color:var(--dim);"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <h2 style="margin:0 0 12px; font-size:18px;">Ko'rinish</h2>
+      <div class="settings-form">
+        <div class="row">
+          <button class="ghost theme-btn" id="themeDarkBtn" style="width:auto;">Tungi</button>
+          <button class="ghost theme-btn" id="themeLightBtn" style="width:auto;">Kunduzgi</button>
+        </div>
       </div>
     </div>
   </div>
@@ -678,9 +740,15 @@
 
   // Auth tayyor bo'lishini kutamiz (rules authenticated talab qilsa).
   // Lekin uid pathga kirmaydi.
+  // 5 soniyalik timeout bilan cheklaymiz: Firebase javob bermay qolsa (sekin tarmoq,
+  // osilib qolgan so'rov), storage.get/set abadiy "kutish" holatida qolmasin —
+  // shu vaqtdan keyin localStorage fallback'ga o'tadi.
   async function waitAuthReady(){
     try{
-      await window.__uidReady;
+      await Promise.race([
+        window.__uidReady,
+        new Promise(res => setTimeout(res, 5000))
+      ]);
     }catch(e){}
   }
 
@@ -975,7 +1043,7 @@
     if(warn){
       if(gap !== null && gap >= 2){
         warn.classList.add('show');
-        warn.textContent = "⚠️ " + gap + " kundan beri darsga kirmading. O'qituvching buni bilib turibdi.";
+        warn.textContent = gap + " kundan beri darsga kirmading. O'qituvching buni bilib turibdi.";
       } else {
         warn.classList.remove('show');
         warn.textContent = "";
@@ -1012,6 +1080,15 @@
 
   function xpForLevel(lvl){ return lvl*100; }
 
+  // Daraja raqami → career tier. Chegaralar: 1-5 Junior, 6-15 Middle, 16+ Senior.
+  // Middle bosqichi ataylab uzunroq (10 daraja) — bu real karyerada eng uzoq bosqich,
+  // shu tufayli o'yin ham "grind" hissini shu yerda ko'proq beradi.
+  function tierForLevel(lvl){
+    if(lvl >= 16) return { name: 'Senior', cls: 'tier-senior' };
+    if(lvl >= 6) return { name: 'Middle', cls: 'tier-middle' };
+    return { name: 'Junior', cls: 'tier-junior' };
+  }
+
   async function loadProfile(){
     try{
       const res = await storage.get(PROFILE_KEY);
@@ -1028,17 +1105,65 @@
   }
   function renderProfile(){
     const need = xpForLevel(profile.level);
-    document.getElementById('levelBadge').textContent = "Daraja " + profile.level;
+    const tier = tierForLevel(profile.level);
+    const levelBadgeEl = document.getElementById('levelBadge');
+    levelBadgeEl.textContent = tier.name + " · Daraja " + profile.level;
+    levelBadgeEl.className = "level-badge " + tier.cls;
     document.getElementById('xpNum').textContent = profile.xp + " / " + need + " XP";
     document.getElementById('xpBar').style.width = Math.min(100, Math.round((profile.xp/need)*100)) + "%";
     document.getElementById('streakBadge').textContent = "Ketma-ket: " + profile.streak + " ketma-ket to'g'ri";
   }
-  function showToast(msg){
+  function showToast(msg, type){
     const t = document.getElementById('toast');
+    if(!t) return; // DOM hali tayyor bo'lmasa, jim o'tib ketamiz — sinmaydi
     t.textContent = msg;
+    t.classList.toggle('danger', type === 'danger');
     t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 1800);
+    // Ketma-ket toastlar bir-birini kesib o'tmasin — eskisini bekor qilamiz
+    clearTimeout(t.__hideTimer);
+    t.__hideTimer = setTimeout(()=>t.classList.remove('show'), 1800);
   }
+
+  // ================= Global error boundary =================
+  // Ilovaning istalgan joyida (Firebase, Groq, yoki oddiy bug) kutilmagan xatolik
+  // sodir bo'lsa, foydalanuvchi hech narsa ko'rmay UI "muzlab" qolmasin — buning
+  // o'rniga qisqa, tushunarli xabar chiqadi. Bu oxirgi himoya chizig'i, individual
+  // try/catch'larning o'rnini bosmaydi, ularni to'ldiradi.
+  let lastErrorToastAt = 0;
+  function reportUnexpectedError(err){
+    console.error('Kutilmagan xato:', err);
+    const now = Date.now();
+    // Xatolar zanjir bo'lib ketishi mumkin (bitta bug bir nechta joyda otilishi) —
+    // shu sabab toast'larni spam qilib yubormaslik uchun debounce qilamiz.
+    if(now - lastErrorToastAt < 4000) return;
+    lastErrorToastAt = now;
+    showToast("Nimadir noto'g'ri ketdi. Muammo davom etsa, sahifani yangilang.", 'danger');
+  }
+  window.addEventListener('error', (e)=> reportUnexpectedError(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e)=> reportUnexpectedError(e.reason));
+
+  // ================= Dark/Light rejim =================
+  const THEME_KEY = 'quest-theme';
+  function applyTheme(theme){
+    if(theme === 'light'){
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    const darkBtn = document.getElementById('themeDarkBtn');
+    const lightBtn = document.getElementById('themeLightBtn');
+    if(darkBtn) darkBtn.classList.toggle('active', theme !== 'light');
+    if(lightBtn) lightBtn.classList.toggle('active', theme === 'light');
+  }
+  function setTheme(theme){
+    try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+    applyTheme(theme);
+  }
+  document.getElementById('themeDarkBtn').addEventListener('click', ()=> setTheme('dark'));
+  document.getElementById('themeLightBtn').addEventListener('click', ()=> setTheme('light'));
+  // <head> boshidagi inline skript attribute'ni allaqachon o'rnatgan bo'lishi mumkin —
+  // shu holatni o'qib, tugma UI'sini u bilan sinxronlaymiz (ikkinchi marta localStorage'ga yozmasdan).
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
   function addXp(amount, lesson, wasCorrect){
     profile.history[lesson] = profile.history[lesson] || {wrong:0, right:0};
     if(wasCorrect){
@@ -1049,6 +1174,7 @@
       profile.history[lesson].wrong++;
       profile.streak = 0;
     }
+    const prevLevel = profile.level;
     profile.xp += amount;
     let leveledUp = false;
     while(profile.xp >= xpForLevel(profile.level)){
@@ -1060,7 +1186,15 @@
     saveProfile();
     logActivity('xp', amount);
     logActivity('question', 0);
-    if(leveledUp) showToast("Tabriklaymiz! Daraja " + profile.level + " ga chiqdingiz!");
+    if(leveledUp){
+      const prevTier = tierForLevel(prevLevel).name;
+      const newTier = tierForLevel(profile.level).name;
+      if(newTier !== prevTier){
+        showToast("Tabriklaymiz! Endi siz — " + newTier + "!");
+      } else {
+        showToast("Tabriklaymiz! Daraja " + profile.level + " ga chiqdingiz!");
+      }
+    }
     else if(wasCorrect) showToast("+" + amount + " XP");
   }
 
@@ -1140,6 +1274,8 @@
   let answered = false;
   // Joriy test sessiyasi javoblari (faqat qisqa meta — matn saqlanmaydi)
   let sessionMisses = []; // {lesson, type, id?, tag?}
+  // Xato qilingan savollarning to'liq obyektlari — "Xato qilganlarim" bo'limi va qayta yechish uchun
+  let sessionMissQuestions = []; // [{q}]
   let testStartedAt = 0;
 
   const qTag = document.getElementById('qTag');
@@ -1163,7 +1299,7 @@
       }
       const pool = await loadQuestionsUpTo(currentLesson);
       if(!pool.length){
-        alert("Savollar yuklanmadi. Internetni tekshirib, qayta urinib ko'ring." + (bankError ? "\n" + bankError : ""));
+        showToast("Savollar yuklanmadi. Internetni tekshirib, qayta urinib ko'ring.", 'danger');
         startBtn.disabled = false;
         startBtn.textContent = prevLabel;
         return;
@@ -1179,13 +1315,14 @@
       const chosenMcq = weightedSample(mcqPool, Math.max(0, n - chosenWrite.length));
       testQuestions = shuffle(chosenMcq.concat(chosenWrite));
       if(!testQuestions.length){
-        alert("Tanlangan dars uchun savol topilmadi.");
+        showToast("Tanlangan dars uchun savol topilmadi.", 'danger');
         startBtn.disabled = false;
         startBtn.textContent = prevLabel;
         return;
       }
       qi = 0; correctCount = 0; wrongByLesson = {};
       sessionMisses = [];
+      sessionMissQuestions = [];
       testStartedAt = Date.now();
       setupArea.classList.add('hide');
       resultArea.classList.remove('show');
@@ -1194,7 +1331,7 @@
       renderQuestion();
     }catch(e){
       console.error(e);
-      alert("Savollarni yuklashda xatolik: " + (e.message || e));
+      showToast("Savollarni yuklashda xatolik: " + (e.message || e), 'danger');
     } finally {
       startBtn.disabled = false;
       startBtn.textContent = prevLabel;
@@ -1383,12 +1520,25 @@
         id: q.id || null,
         tag: (LESSON_TITLES[q.lesson] || ('L'+q.lesson)).slice(0,24)
       });
+      // Bir xil savol ikki marta ro'yxatga tushmasin (reference bo'yicha tekshiramiz)
+      if(!sessionMissQuestions.some(m=>m.q===q)) sessionMissQuestions.push({ q });
       addXp(2, q.lesson, false);
     }
     explainBox.innerHTML = "<b>" + (isCorrect ? "To'g'ri! " : "Noto'g'ri. ") + "</b>" + q.exp;
     explainBox.classList.add('show');
     nextBtn.disabled = false;
   }
+
+// So'nggi N ta xabarni qaytaradi — token tejash uchun.
+// Uzoq muddatli xotira (test tarixi, zaif mavzular, faktlar) allaqachon
+// buildTeacherSystemPrompt() ichida qisqartirilgan holda bor. Shu sabab bu yerda
+// faqat "qisqa muddatli xotira" — oxirgi bir necha almashinuv — kifoya.
+// Har safar butun chat tarixini yuborish suhbat uzunlashgan sari tokenni
+// chiziqli o'sish bilan yeydi va Groq bepul limitiga tez uradi.
+function recentMessages(messages, maxCount){
+  if(messages.length <= maxCount) return messages;
+  return messages.slice(messages.length - maxCount);
+}
 
 async function callGroq(messages, options = {}) {
   const key = getGroqKey();
@@ -1519,6 +1669,8 @@ async function checkWrite(userCode, q, retryWrap, checkBtn){
         id: q.id || null,
         tag: (LESSON_TITLES[q.lesson] || ('L'+q.lesson)).slice(0,24)
       });
+      // Write savolda user bir necha marta xato qilishi mumkin — takrorlanmasin
+      if(!sessionMissQuestions.some(m=>m.q===q)) sessionMissQuestions.push({ q });
       addXp(3, q.lesson, false);
       explainBox.innerHTML = "<b style='color:var(--danger);'>Hali to'liq to'g'ri emas. </b>" + escapeHtml(parsed.feedback);
       checkBtn.disabled = false;
@@ -1618,6 +1770,21 @@ Vazifang: to'g'ri javobni AYTMASDAN, o'quvchini to'g'ri fikrlash yo'liga solib q
       weakList.style.display = 'none';
     }
 
+    const missList = document.getElementById('missList');
+    const missItems = document.getElementById('missItems');
+    if(sessionMissQuestions.length){
+      missList.style.display = 'block';
+      document.getElementById('missCount').textContent = sessionMissQuestions.length;
+      missItems.innerHTML = sessionMissQuestions.map(m=>{
+        const mq = m.q;
+        const label = mq.type === 'write' ? (mq.task || '') : (mq.q || '');
+        const short = label.length > 90 ? label.slice(0,90) + '…' : label;
+        return `<div>Dars ${mq.lesson} · ${escapeHtml(short)}</div>`;
+      }).join('');
+    } else {
+      missList.style.display = 'none';
+    }
+
     const msgBox = document.getElementById('finalTeacherMsg');
     const msgText = document.getElementById('finalTeacherText');
     msgBox.style.display = 'flex';
@@ -1651,11 +1818,30 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
     }
   }
 
+  // Faqat oldingi sessiyada xato qilingan savollardan iborat mini-test boshlaydi.
+  // testQuestions/qi/correctCount kabi global state'lar startTest() bilan bir xil ishlatiladi,
+  // shu sabab renderQuestion(), selectOption(), checkWrite() qo'shimcha o'zgarishsiz ishlayveradi.
+  function startMissedRetry(){
+    if(!sessionMissQuestions.length) return;
+    const pool = sessionMissQuestions.map(m=>m.q);
+    testQuestions = shuffle(pool.slice());
+    qi = 0; correctCount = 0; wrongByLesson = {};
+    sessionMisses = [];
+    sessionMissQuestions = [];
+    testStartedAt = Date.now();
+    resultArea.classList.remove('show');
+    setupArea.classList.add('hide');
+    testArea.classList.add('show');
+    logActivity('test', 0);
+    renderQuestion();
+  }
+
   startBtn.addEventListener('click', startTest);
   document.getElementById('retryBtn').addEventListener('click', ()=>{
     resultArea.classList.remove('show');
     setupArea.classList.remove('hide');
   });
+  document.getElementById('retryMissedBtn').addEventListener('click', startMissedRetry);
 
   // ================= View navigation =================
   const views = {
@@ -2120,7 +2306,11 @@ ${conversationText}`;
       const userMessages = session.messages.filter(m => m.role === 'user');
       if(userMessages.length % 5 !== 0) return;
 
-      const conversationText = session.messages
+      // Fakt chiqarish uchun butun tarix shart emas — funksiya vazifasi
+      // "faqat yangi ma'lumotlarni chiqar" (eskilarni takrorlama), demak
+      // oxirgi oyna kifoya. Bu har 5 xabarda o'sib boruvchi to'liq tarixni
+      // qayta-qayta yuborishning oldini oladi.
+      const conversationText = recentMessages(session.messages, 10)
         .map(m => (m.role === 'user' ? "O'quvchi: " : "O'qituvchi: ") + m.content)
         .join('\n');
 
@@ -2268,7 +2458,9 @@ ${conversationText}`;
     try{
       const stillOnboarding = session.onboarding && !studentProfile.onboarded;
       const systemPrompt = stillOnboarding ? buildOnboardingSystemPrompt() : buildTeacherSystemPrompt();
-      const reply = await callGroq(session.messages, {
+      // Faqat oxirgi 12 ta xabar (6 ta almashinuv) yuboriladi — uzoq tarix
+      // system promptda qisqartirilgan holda allaqachon bor.
+      const reply = await callGroq(recentMessages(session.messages, 12), {
         system: systemPrompt,
         max_tokens: 180
       });
