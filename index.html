@@ -609,6 +609,7 @@
         <div class="stat"><div class="n" id="availCount">0</div><div class="l">shu darsgacha savol soni</div></div>
         <div class="stat"><div class="n" id="topicCount">18</div><div class="l">o'tilgan dars</div></div>
       </div>
+      <p style="margin:10px 0 0; font-size:12px; color:var(--dim);">Faqat <b>Javascript asoslari</b> kursidan (js-asoslari). 1-darsdan tanlangan darsgacha bo'lgan savollar aralash keladi — hali o'tilmagan darsdan savol chiqmaydi.</p>
     </div>
 
     <div class="panel">
@@ -616,7 +617,24 @@
         <label style="min-width:auto;">Testdagi savollar soni</label>
         <input type="number" id="qCount" min="5" max="60" value="20" style="width:70px;">
       </div>
-      <button class="primary" id="startBtn">▶ Testni boshlash</button>
+      <button class="primary" id="startBtn">▶ Testni boshlash (1 → hozirgi dars)</button>
+    </div>
+
+    <div class="panel" id="singleLessonPanel">
+      <h3 style="margin:0 0 8px; font-size:14.5px;">Bitta dars — mukammal savol-javob</h3>
+      <p style="margin:0 0 12px; color:var(--dim); font-size:12.5px;">Faqat tanlangan bitta dars savollari. Har safar boshlaganda / sahifa yangilanganda savollar qayta random bo'ladi.</p>
+      <div class="row" style="margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+        <label for="singleLessonNum" style="min-width:auto;">Dars</label>
+        <input type="number" id="singleLessonNum" min="1" max="30" value="18" style="width:64px;">
+        <input type="range" id="singleLessonRange" min="1" max="30" value="18" style="flex:1; min-width:120px;">
+        <span class="lesson-name" id="singleLessonName" style="min-width:120px;">18. if/else</span>
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <label style="min-width:auto;">Savollar soni</label>
+        <input type="number" id="singleQCount" min="3" max="40" value="15" style="width:70px;">
+        <span style="font-size:12px; color:var(--dim);" id="singleAvailHint">—</span>
+      </div>
+      <button class="primary" id="startSingleBtn" style="background:var(--accent2); border-color:var(--accent2); color:#fff;">▶ Shu dars bo'yicha mashq</button>
     </div>
   </div>
 
@@ -1367,6 +1385,7 @@
   // CDN bank meta + dars nomlarini yuklash
   loadCourseMeta().then(() => {
     currentLesson = syncSetup(currentLesson);
+    if(typeof syncSingleLesson === 'function') singleLesson = syncSingleLesson(singleLesson || 18);
   });
 
   function shuffle(arr){
@@ -1411,6 +1430,9 @@
   // showResult() chaqirilganda shu sessiya "Yana test yechish" orqali ochilgan
   // aynan-shu-savollar takrori ekanini AI'ga bildirish uchun bayroq.
   let wasRetrySameSet = false;
+  // Oxirgi test rejimi: 'cumulative' (1→N) yoki 'single' (faqat bitta dars)
+  let lastTestMode = 'cumulative';
+  let lastSingleLesson = 18;
 
   const qTag = document.getElementById('qTag');
   const qIdx = document.getElementById('qIdx');
@@ -1422,6 +1444,62 @@
   const hintBtn = document.getElementById('hintBtn');
   const hintBox = document.getElementById('hintBox');
 
+  // ---------- Bitta dars UI ----------
+  const singleLessonNum = document.getElementById('singleLessonNum');
+  const singleLessonRange = document.getElementById('singleLessonRange');
+  const singleLessonName = document.getElementById('singleLessonName');
+  const singleQCount = document.getElementById('singleQCount');
+  const singleAvailHint = document.getElementById('singleAvailHint');
+  const startSingleBtn = document.getElementById('startSingleBtn');
+
+  function syncSingleLesson(v){
+    v = Math.max(1, Math.min(30, parseInt(v)||1));
+    if(singleLessonNum) singleLessonNum.value = v;
+    if(singleLessonRange) singleLessonRange.value = v;
+    if(singleLessonName) singleLessonName.textContent = v + ". " + (LESSON_TITLES[v] || ("Dars " + v));
+    const fromCache = (packCache.mcq[v] || []).length + (packCache.code[v] || []).length;
+    let fromIndex = null;
+    if(courseIndex){
+      const m = (courseIndex.mcq || []).find(p => p.lesson === v);
+      const c = (courseIndex.code || []).find(p => p.lesson === v);
+      fromIndex = (m ? (m.count||0) : 0) + (c ? (c.count||0) : 0);
+    }
+    const total = fromCache > 0 ? fromCache : (fromIndex != null ? fromIndex : 0);
+    if(singleAvailHint) singleAvailHint.textContent = total ? (total + " ta savol bor") : "—";
+    if(singleQCount && total > 0){
+      singleQCount.max = Math.max(3, total);
+      if(parseInt(singleQCount.value) > total) singleQCount.value = total;
+    }
+    return v;
+  }
+  let singleLesson = syncSingleLesson(18);
+  if(singleLessonNum) singleLessonNum.addEventListener('input', ()=> singleLesson = syncSingleLesson(singleLessonNum.value));
+  if(singleLessonRange) singleLessonRange.addEventListener('input', ()=> singleLesson = syncSingleLesson(singleLessonRange.value));
+
+  async function loadQuestionsForLesson(lesson){
+    await Promise.all([fetchPack("mcq", lesson), fetchPack("code", lesson)]);
+    const all = [];
+    if(packCache.mcq[lesson]) all.push(...packCache.mcq[lesson]);
+    if(packCache.code[lesson]) all.push(...packCache.code[lesson]);
+    return all.filter(q => (q.lesson == null || Number(q.lesson) === Number(lesson)));
+  }
+
+  function beginTestSession(questions, mode, lessonForMode){
+    testQuestions = questions;
+    lastTestMode = mode;
+    if(mode === 'single') lastSingleLesson = lessonForMode;
+    wasRetrySameSet = false;
+    qi = 0; correctCount = 0; wrongByLesson = {};
+    sessionMisses = [];
+    sessionMissQuestions = [];
+    testStartedAt = Date.now();
+    setupArea.classList.add('hide');
+    resultArea.classList.remove('show');
+    testArea.classList.add('show');
+    logActivity('test', 0);
+    renderQuestion();
+  }
+
   async function startTest(){
     startBtn.disabled = true;
     const prevLabel = startBtn.textContent;
@@ -1431,14 +1509,13 @@
       if(!bankReady){
         await loadCourseMeta();
       }
-      const pool = await loadQuestionsUpTo(currentLesson);
+      // Faqat 1..currentLesson — hali o'tilmagan darsdan savol kelmasin
+      let pool = await loadQuestionsUpTo(currentLesson);
+      pool = pool.filter(q => Number(q.lesson) <= Number(currentLesson));
       if(!pool.length){
         showToast("Savollar yuklanmadi. Internetni tekshirib, qayta urinib ko'ring.", 'danger');
-        startBtn.disabled = false;
-        startBtn.textContent = prevLabel;
         return;
       }
-      // UI dagi sonni yangilab qo'yamiz
       syncSetup(currentLesson);
 
       const mcqPool = pool.filter(q=>q.type==='mcq');
@@ -1447,31 +1524,52 @@
       const writeTarget = Math.min(writePool.length, Math.max(0, Math.round(n/4)));
       const chosenWrite = weightedSample(writePool, writeTarget);
       const chosenMcq = weightedSample(mcqPool, Math.max(0, n - chosenWrite.length));
-      testQuestions = shuffle(chosenMcq.concat(chosenWrite));
-      if(!testQuestions.length){
+      const chosen = shuffle(chosenMcq.concat(chosenWrite));
+      if(!chosen.length){
         showToast("Tanlangan dars uchun savol topilmadi.", 'danger');
-        startBtn.disabled = false;
-        startBtn.textContent = prevLabel;
         return;
       }
-      // Yangi (random) test boshlanmoqda — bu "Yana test yechish" orqali kelgan
-      // takror emas, demak bayroqni tozalab qo'yamiz.
-      wasRetrySameSet = false;
-      qi = 0; correctCount = 0; wrongByLesson = {};
-      sessionMisses = [];
-      sessionMissQuestions = [];
-      testStartedAt = Date.now();
-      setupArea.classList.add('hide');
-      resultArea.classList.remove('show');
-      testArea.classList.add('show');
-      logActivity('test', 0);
-      renderQuestion();
+      beginTestSession(chosen, 'cumulative', currentLesson);
     }catch(e){
       console.error(e);
       showToast("Savollarni yuklashda xatolik: " + (e.message || e), 'danger');
     } finally {
       startBtn.disabled = false;
       startBtn.textContent = prevLabel;
+    }
+  }
+
+  async function startSingleLessonTest(){
+    if(!startSingleBtn) return;
+    startSingleBtn.disabled = true;
+    const prevLabel = startSingleBtn.textContent;
+    startSingleBtn.textContent = "Savollar yuklanmoqda...";
+    try{
+      if(!bankReady) await loadCourseMeta();
+      singleLesson = syncSingleLesson(singleLessonNum ? singleLessonNum.value : singleLesson);
+      let pool = await loadQuestionsForLesson(singleLesson);
+      if(!pool.length){
+        showToast("Bu dars uchun savol topilmadi.", 'danger');
+        return;
+      }
+      const mcqPool = pool.filter(q=>q.type==='mcq');
+      const writePool = pool.filter(q=>q.type==='write');
+      const n = Math.min(parseInt(singleQCount && singleQCount.value)||15, pool.length);
+      const writeTarget = Math.min(writePool.length, Math.max(0, Math.round(n/4)));
+      const chosenWrite = weightedSample(writePool, writeTarget);
+      const chosenMcq = weightedSample(mcqPool, Math.max(0, n - chosenWrite.length));
+      const chosen = shuffle(chosenMcq.concat(chosenWrite));
+      if(!chosen.length){
+        showToast("Bu dars uchun savol topilmadi.", 'danger');
+        return;
+      }
+      beginTestSession(chosen, 'single', singleLesson);
+    }catch(e){
+      console.error(e);
+      showToast("Savollarni yuklashda xatolik: " + (e.message || e), 'danger');
+    } finally {
+      startSingleBtn.disabled = false;
+      startSingleBtn.textContent = prevLabel;
     }
   }
 
@@ -1982,13 +2080,20 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
     renderQuestion();
   }
 
-  // "Yana test yechish" — oxirgi tugagan testning AYNAN o'sha savollarini,
-  // aynan o'sha tartibda qayta boshlaydi (random emas). Boshqa barcha holatlarda
-  // (startTest — "Testni boshlash" tugmasi) savollar hamon random tanlanadi.
+  // "Yana test yechish":
+  // - cumulative: aynan o'sha savollar, o'sha tartibda
+  // - single (bitta dars): har safar YANGI random to'plam
   function startSameRetry(){
+    if(lastTestMode === 'single'){
+      if(singleLessonNum) singleLessonNum.value = lastSingleLesson;
+      if(singleLessonRange) singleLessonRange.value = lastSingleLesson;
+      singleLesson = syncSingleLesson(lastSingleLesson);
+      startSingleLessonTest();
+      return;
+    }
     if(!lastFinishedTestQuestions.length) return;
     wasRetrySameSet = true;
-    testQuestions = lastFinishedTestQuestions.slice(); // nusxa, aynan shu tartib
+    testQuestions = lastFinishedTestQuestions.slice();
     qi = 0; correctCount = 0; wrongByLesson = {};
     sessionMisses = [];
     sessionMissQuestions = [];
@@ -2001,6 +2106,7 @@ Uzun sanab o'tma, dars raqamlarini ko'p aytma.`;
   }
 
   startBtn.addEventListener('click', startTest);
+  if(startSingleBtn) startSingleBtn.addEventListener('click', startSingleLessonTest);
   document.getElementById('retryBtn').addEventListener('click', startSameRetry);
   document.getElementById('retryMissedBtn').addEventListener('click', startMissedRetry);
 
