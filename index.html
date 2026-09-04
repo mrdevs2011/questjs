@@ -1075,7 +1075,12 @@ const WRITE_BANK = [
 
   function renderQuestionText(text){
     qText.innerHTML = "";
-    const splitMatch = text.match(/^([\s\S]*?)\s*(natija(?:si)? (?:nima|qanday)[\s\S]*)$/i);
+    // Eslatma: bazadagi savollar "natija?", "natijasi?", "natija nima bo'ladi?"
+    // va "natija qanday?" kabi turli formatlarda tugaydi. Oldingi regex faqat
+    // "nima"/"qanday" bilan tugaganlarni ushlardi, oddiy "natija?" bilan
+    // tugagan savollarni (bazadagi ko'pchilik) o'tkazib yuborardi — shu sabab
+    // ular kod-editor ichida emas, oddiy matn sifatida chiqib qolgan.
+    const splitMatch = text.match(/^([\s\S]*?)\s*(natija(?:si)?\s*(?:nima\s*(?:bo'ladi)?|qanday)?\??)$/i);
     let codePart, questionPart;
     if(splitMatch){
       codePart = splitMatch[1].trim();
@@ -1131,12 +1136,44 @@ const WRITE_BANK = [
     return out;
   }
 
-  function buildCodeEditor(code){
-    let formatted = code
-      .replace(/\{\s*/g, ' {\n  ')
+  function formatSingleLineCode(code){
+    // Bir qatorli kodni ko'p qatorli, indentatsiyali ko'rinishga o'tkazadi.
+    // "}" va keyingi else/catch/finally ni bitta qatorga birlashtiradi,
+    // va brace chuqurligiga qarab 2 bo'shliqdan indent qo'shadi.
+    let step = code
+      .replace(/\{\s*/g, ' {\n')
       .replace(/;\s*(?!\s*$)/g, ';\n')
-      .replace(/\}\s*/g, '\n}')
-      .split('\n').map(l=>l.trim()).filter(l=>l.length).join('\n');
+      .replace(/\}\s*/g, '\n}\n');
+
+    let lines = step.split('\n').map(l=>l.trim()).filter(l=>l.length);
+
+    const merged = [];
+    for(const line of lines){
+      const prev = merged[merged.length-1];
+      if(/^(else|catch|finally)\b/i.test(line) && prev === '}'){
+        merged[merged.length-1] = '} ' + line;
+      } else if(line === ';' && prev !== undefined){
+        merged[merged.length-1] = prev + ';';
+      } else {
+        merged.push(line);
+      }
+    }
+
+    let depth = 0;
+    const indented = merged.map(line => {
+      let printDepth = depth;
+      if(/^\}/.test(line)) printDepth = Math.max(0, depth - 1);
+      const opens = (line.match(/\{/g)||[]).length;
+      const closes = (line.match(/\}/g)||[]).length;
+      depth = Math.max(0, depth + opens - closes);
+      return '  '.repeat(printDepth) + line;
+    });
+
+    return indented.join('\n');
+  }
+
+  function buildCodeEditor(code){
+    let formatted = code.includes('\n') ? code : formatSingleLineCode(code);
     if(!formatted.includes('\n')) formatted = code;
 
     const lines = formatted.split('\n');
