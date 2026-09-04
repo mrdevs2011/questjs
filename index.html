@@ -279,6 +279,8 @@
     border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px 12px; font-family:inherit; font-size:13.5px; outline:none; }
   .chat-input-row textarea:focus{ border-color:var(--accent2); }
   .chat-input-row button{ align-self:flex-end; padding:12px 16px; }
+  .rate-limit-hint{ font-size:10.5px; color:var(--dim); opacity:0.55; font-family:'JetBrains Mono', monospace;
+    text-align:right; margin-top:4px; min-height:14px; }
 
   .mode-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; }
   .mode-toggle{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:3px; }
@@ -440,6 +442,7 @@
             <textarea id="chatInput" placeholder="Xabar yoz..." rows="1"></textarea>
             <button class="primary" id="chatSendBtn" style="width:auto;">Yuborish</button>
           </div>
+          <div class="rate-limit-hint" id="rateLimitHint"></div>
         </div>
         <div class="code-input-box" id="codeInputBox">
           <div class="code-compose">
@@ -1506,7 +1509,7 @@ USLUB QOIDALARI:
 5. Markdown ishlatma.
 6. Sen real o'qituvchisan, AI/ChatGPT degan gapga "o'qitganman, bilaman, savolga qayt" deb qisqa javob ber.
 
-VAZIFANG: o'quvchidan ismini, JS o'rganish sababini, oldingi tajribasini va vaqtini so'rab bil — lekin buni bittalab, tabiiy suhbat tarzida, sanab o'tirmasdan so'ra.`;
+VAZIFANG: suhbat tarixiga qarab davom et. O'quvchidan quyidagi 4 narsani bilib olishing kerak: ismi, JS o'rganish sababi, oldingi tajribasi, kuniga ajrata oladigan vaqti. Har bir xabaringda FAQAT BITTA yangi savol ber — bir nechtasini birga so'rama. O'quvchi bir savolga javob bergan bo'lsa, o'sha javobni qisqa tan ol (masalan ismini takrorlab) va keyingi bilinmagan narsa haqida so'ra. Oldin so'ragan savolingni takrorlama — suhbat tarixini diqqat bilan o'qi va nima allaqachon aytilganini unutma.`;
   }
 
   function buildProfileExtractionPrompt(conversationText){
@@ -1812,7 +1815,10 @@ ${conversationText}`;
 
   async function tryFinishOnboarding(session){
     const userMsgCount = session.messages.filter(m => m.role === 'user').length;
-    if(userMsgCount < 3) return;
+    // Kamida 2 ta javob bersa ham yetarli — 3 talab qilish onboarding'ni
+    // keraksiz cho'zib yuborardi va foydalanuvchi erta chiqib ketsa,
+    // hech qachon tugamaydigan holatga olib kelardi.
+    if(userMsgCount < 2) return;
     if(studentProfile.onboarded) return;
 
     try{
@@ -1830,11 +1836,18 @@ ${conversationText}`;
         const facts = JSON.parse(jsonMatch[0]);
         if(facts && typeof facts === 'object' && Object.keys(facts).length){
           studentProfile.facts = Object.assign(studentProfile.facts || {}, facts);
-          studentProfile.onboarded = true;
-          saveStudentProfile();
         }
       }
-    }catch(e){}
+    }catch(e){
+      console.debug("Onboarding extraction xatosi (fakt yo'q, lekin onboarding baribir tugaydi):", e.message);
+    }
+
+    // MUHIM: extraction muvaffaqiyatli bo'lsa ham, bo'lmasa ham onboarding
+    // shu yerda tugaydi. Agar buni try blokining ichiga qoldirsang, bitta
+    // AI chaqiruvi xato qilganda o'quvchi ABADIY "yangi o'quvchi" bo'lib
+    // qolaveradi — har safar tanishuv savollarini qaytadan eshitadi.
+    studentProfile.onboarded = true;
+    saveStudentProfile();
   }
 
   async function updateStudentFacts(session){
@@ -1884,15 +1897,88 @@ ${conversationText}`;
     renderSessionList();
     renderAllChat();
     await startSessionOpener();
+
+    // Sahifa qayta ochilganda ham limit hali faol bo'lishi mumkin —
+    // shuning uchun UI'ni darhol tekshirib qo'yamiz.
+    const rl = getRateLimitStatus();
+    if(rl.blocked) startRateLimitCountdown();
   }
+
+  // ================= Rate limit: 1 daqiqada max 2 xabar =================
+  const RATE_LIMIT_KEY = 'quest-msg-timestamps';
+  const RATE_LIMIT_MAX = 2;
+  const RATE_LIMIT_WINDOW_MS = 60000;
+  let msgTimestamps = [];
+  let rateLimitTimer = null;
+  const rateLimitHint = document.getElementById('rateLimitHint');
+
+  function loadMsgTimestamps(){
+    try{
+      const raw = localStorage.getItem(RATE_LIMIT_KEY);
+      if(raw) msgTimestamps = JSON.parse(raw);
+    }catch(e){ msgTimestamps = []; }
+  }
+  function saveMsgTimestamps(){
+    try{ localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(msgTimestamps)); }catch(e){}
+  }
+  function pruneOldTimestamps(){
+    const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+    msgTimestamps = msgTimestamps.filter(t => t > cutoff);
+  }
+  // Limitga yetganmi va yetgan bo'lsa qancha soniya kutish kerakligini qaytaradi
+  function getRateLimitStatus(){
+    pruneOldTimestamps();
+    if(msgTimestamps.length < RATE_LIMIT_MAX) return { blocked:false, waitSeconds:0 };
+    const oldest = msgTimestamps[0];
+    const msLeft = (oldest + RATE_LIMIT_WINDOW_MS) - Date.now();
+    return { blocked: msLeft > 0, waitSeconds: Math.ceil(msLeft / 1000) };
+  }
+  function recordMessageSent(){
+    pruneOldTimestamps();
+    msgTimestamps.push(Date.now());
+    saveMsgTimestamps();
+  }
+  // Har soniya UI'ni yangilab turadigan sanoq — limitga yetilganda ishga tushadi
+  function startRateLimitCountdown(){
+    if(rateLimitTimer) clearInterval(rateLimitTimer);
+    updateRateLimitUI();
+    rateLimitTimer = setInterval(() => {
+      const status = getRateLimitStatus();
+      if(!status.blocked){
+        clearInterval(rateLimitTimer);
+        rateLimitTimer = null;
+        rateLimitHint.textContent = '';
+        chatSendBtn.disabled = false;
+      } else {
+        rateLimitHint.textContent = `Keyingi xabar uchun: ${status.waitSeconds}s`;
+      }
+    }, 1000);
+  }
+  function updateRateLimitUI(){
+    const status = getRateLimitStatus();
+    if(status.blocked){
+      rateLimitHint.textContent = `Keyingi xabar uchun: ${status.waitSeconds}s`;
+      chatSendBtn.disabled = true;
+    } else {
+      rateLimitHint.textContent = '';
+    }
+  }
+  loadMsgTimestamps();
 
   async function sendChatMessage(overrideText){
     const text = typeof overrideText === 'string' ? overrideText : chatInput.value.trim();
     if(!text || chatBusy) return;
 
+    const rl = getRateLimitStatus();
+    if(rl.blocked){
+      startRateLimitCountdown();
+      return;
+    }
+
     const session = getActiveSession();
     if(!session) return;
 
+    recordMessageSent();
     chatBusy = true;
     chatSendBtn.disabled = true;
 
@@ -1915,7 +2001,8 @@ ${conversationText}`;
     typingEl.classList.add('typing');
 
     try{
-      const systemPrompt = buildTeacherSystemPrompt();
+      const stillOnboarding = session.onboarding && !studentProfile.onboarded;
+      const systemPrompt = stillOnboarding ? buildOnboardingSystemPrompt() : buildTeacherSystemPrompt();
       const reply = await callGroq(session.messages, {
         system: systemPrompt,
         max_tokens: 700
@@ -1942,8 +2029,17 @@ ${conversationText}`;
     studentProfile.lastSeenAt = Date.now();
     saveStudentProfile();
     chatBusy = false;
-    chatSendBtn.disabled = false;
     chatInput.focus();
+
+    // Tugmani yoqishdan oldin rate limit'ni qayta tekshiramiz — chatBusy
+    // tugagani limitning ham tugaganini anglatmaydi.
+    const rlAfter = getRateLimitStatus();
+    if(rlAfter.blocked){
+      startRateLimitCountdown();
+    } else {
+      chatSendBtn.disabled = false;
+      rateLimitHint.textContent = '';
+    }
   }
 
   chatSendBtn.addEventListener('click', () => sendChatMessage());
