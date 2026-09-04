@@ -364,7 +364,7 @@
     <button class="nav-item" data-view="settings"><span class="ico">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
     </span><span>Sozlamalar</span></button>
-    <div class="sidebar-foot">Progress bulutda (Firestore) saqlanadi</div>
+    <div class="sidebar-foot">Progress umumiy bulutda (barcha qurilmalar bir xil)</div>
   </nav>
 <div id="app" class="on-home">
   <header>
@@ -540,7 +540,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <footer>Progressingiz (daraja, XP, ketma-ketlik, faollik) bulutda avtomatik saqlanadi</footer>
+  <footer>Progress (daraja, XP, test tarixi, chat) umumiy bulutda — barcha qurilmalar bir xil</footer>
 </div>
 </div>
 
@@ -664,53 +664,66 @@
   function getGroqKey(){ return localStorage.getItem(GROQ_KEY) || ''; }
   function setGroqKey(key){ localStorage.setItem(GROQ_KEY, key); }
 
-  // ================= Firestore-backed storage =================
-  // Ma'lumotlar endi Firestore'da saqlanadi: users/{uid}/data/{key}
-  // localStorage faqat fallback sifatida qoladi — internet yo'q yoki
-  // Firebase auth ishlamay qolgan holatlarda ilova butunlay o'lib qolmasin.
-  const FIRESTORE_COLLECTION = 'data';
-  let cachedUid = null;
+  // ================= Firestore-backed storage (UMUMIY / SHARED) =================
+  // Barcha qurilmalar BIR xil ma'lumotni ko'radi.
+  // Yo'l: sharedData/{key}  — anonymous uid ga bog'lanMAYDI.
+  // Auth faqat Firestore rules uchun kerak bo'lishi mumkin; path uid'siz.
+  // localStorage faqat offline fallback / kesh.
+  const SHARED_COLLECTION = 'sharedData';
 
-  async function getUid(){
-    if(cachedUid) return cachedUid;
-    cachedUid = await window.__uidReady;
-    return cachedUid;
+  function sharedDocRef(key){
+    const { db, doc } = window.__firestore;
+    return doc(db, SHARED_COLLECTION, key);
   }
 
-  function userDocRef(uid, key){
-    const { db, doc } = window.__firestore;
-    return doc(db, 'users', uid, FIRESTORE_COLLECTION, key);
+  // Auth tayyor bo'lishini kutamiz (rules authenticated talab qilsa).
+  // Lekin uid pathga kirmaydi.
+  async function waitAuthReady(){
+    try{
+      await window.__uidReady;
+    }catch(e){}
   }
 
   const storage = {
     async get(key){
-      const uid = await getUid();
-      if(uid){
+      await waitAuthReady();
+      if(window.__firestore){
         try{
           const { getDoc } = window.__firestore;
-          const snap = await getDoc(userDocRef(uid, key));
+          const snap = await getDoc(sharedDocRef(key));
           if(snap.exists()){
             const value = snap.data().value;
-            localStorage.setItem(key, value); // local cache sifatida ham saqlaymiz
+            // Shared qiymatni local keshga ham yozamiz
+            try{ localStorage.setItem(key, value); }catch(e){}
             return { key, value };
           }
+          // Shared'da yo'q — null (local eski individual keshni e'tiborsiz qoldiramiz,
+          // aks holda har qurilma o'z eski ma'lumotini "umumiy" deb ko'rsatadi)
           return null;
         }catch(e){
           console.error("Firestore get xatosi (" + key + "):", e.message);
-          // Firestore ishlamasa, localStorage'ga tushamiz
         }
       }
-      const value = localStorage.getItem(key);
-      if(value === null) return null;
-      return { key, value };
+      // Offline fallback
+      try{
+        const value = localStorage.getItem(key);
+        if(value === null) return null;
+        return { key, value };
+      }catch(e){
+        return null;
+      }
     },
     async set(key, value){
-      localStorage.setItem(key, value); // darhol local'ga yozamiz, UI kutmasin
-      const uid = await getUid();
-      if(uid){
+      try{ localStorage.setItem(key, value); }catch(e){}
+      await waitAuthReady();
+      if(window.__firestore){
         try{
           const { setDoc } = window.__firestore;
-          await setDoc(userDocRef(uid, key), { value, updatedAt: Date.now() });
+          await setDoc(sharedDocRef(key), {
+            value,
+            updatedAt: Date.now(),
+            scope: 'shared'
+          });
         }catch(e){
           console.error("Firestore set xatosi (" + key + "):", e.message);
         }
@@ -718,12 +731,12 @@
       return { key, value };
     },
     async delete(key){
-      localStorage.removeItem(key);
-      const uid = await getUid();
-      if(uid){
+      try{ localStorage.removeItem(key); }catch(e){}
+      await waitAuthReady();
+      if(window.__firestore){
         try{
           const { deleteDoc } = window.__firestore;
-          await deleteDoc(userDocRef(uid, key));
+          await deleteDoc(sharedDocRef(key));
         }catch(e){
           console.error("Firestore delete xatosi (" + key + "):", e.message);
         }
@@ -750,6 +763,82 @@
   // Har bir kun uchun: {date, testsCompleted, questionsAnswered, xpEarned, chatMessages}
   const ACTIVITY_LOG_KEY = 'quest-activity-log';
   let activityLog = [];
+
+  // ================= Test tarixi (Firestore) =================
+  // Har bir yakunlangan test sessiyasi qisqa formatda saqlanadi.
+  // Maqsad: AI chat kontekstida "qachon, qancha, qaysi mavzuda xato" ni bilish —
+  // lekin to'liq savol matni saqlanmaydi (token tejash).
+  const TEST_HISTORY_KEY = 'quest-test-history';
+  const TEST_HISTORY_MAX = 40; // oxirgi N ta sessiya
+  let testHistory = [];
+
+  async function loadTestHistory(){
+    try{
+      const res = await storage.get(TEST_HISTORY_KEY);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed)) testHistory = parsed;
+      }
+    }catch(e){}
+  }
+  async function saveTestHistory(){
+    try{ await storage.set(TEST_HISTORY_KEY, JSON.stringify(testHistory)); }
+    catch(e){}
+  }
+  function localTimeStr(d){
+    d = d || new Date();
+    const p = n => String(n).padStart(2,'0');
+    return p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function recordTestSession(session){
+    // session: {ts, date, time, lesson, total, correct, pct, weak:[{l,n}], misses:[{lesson,type,id?}]}
+    testHistory.push(session);
+    if(testHistory.length > TEST_HISTORY_MAX){
+      testHistory = testHistory.slice(testHistory.length - TEST_HISTORY_MAX);
+    }
+    saveTestHistory();
+  }
+  // AI uchun qisqa, token-tejamkor xulosa (oxirgi 8 sessiya + trend)
+  function testHistorySummaryForAI(){
+    if(!testHistory.length){
+      return { hasHistory:false, text:"hali test yechilmagan", last:null, trend:null };
+    }
+    const sorted = [...testHistory].sort((a,b)=> (a.ts||0) - (b.ts||0));
+    const recent = sorted.slice(-8);
+    const lines = recent.map(s => {
+      const weak = (s.weak || []).slice(0,4).map(w => `L${w.l}×${w.n}`).join(',') || 'xato yoq';
+      return `${s.date||'?'} ${s.time||''} dars${s.lesson}: ${s.correct}/${s.total} (${s.pct}%) zaif:[${weak}]`.trim();
+    });
+    const last = sorted[sorted.length-1];
+    // Trend: oxirgi 3 vs oldingi 3 o'rtacha foiz
+    let trend = null;
+    if(sorted.length >= 4){
+      const last3 = sorted.slice(-3);
+      const prev3 = sorted.slice(-6, -3);
+      if(prev3.length){
+        const avg = arr => Math.round(arr.reduce((a,s)=>a+(s.pct||0),0) / arr.length);
+        const a = avg(last3), b = avg(prev3);
+        if(a - b >= 8) trend = `yaxshilanmoqda (oxirgi3 ~${a}%, oldingi3 ~${b}%)`;
+        else if(b - a >= 8) trend = `yomonlashgan (oxirgi3 ~${a}%, oldingi3 ~${b}%)`;
+        else trend = `barqaror (~${a}%)`;
+      }
+    }
+    // Bugungi eng so'nggi test
+    const today = todayStr();
+    const todaySessions = sorted.filter(s => s.date === today);
+    const todayLine = todaySessions.length
+      ? `bugun ${todaySessions.length} ta test; oxirgisi ${todaySessions[todaySessions.length-1].correct}/${todaySessions[todaySessions.length-1].total} (${todaySessions[todaySessions.length-1].pct}%)`
+      : "bugun test yechilmagan";
+    return {
+      hasHistory: true,
+      text: lines.join(' || '),
+      last,
+      trend,
+      todayLine,
+      totalSessions: sorted.length
+    };
+  }
+
 
   async function loadActivityLog(){
     try{
@@ -1013,6 +1102,7 @@
   loadProfile();
   loadStudentProfile();
   loadActivityLog().then(renderActivityPanel);
+  loadTestHistory();
   // CDN bank meta + dars nomlarini yuklash
   loadCourseMeta().then(() => {
     currentLesson = syncSetup(currentLesson);
@@ -1048,6 +1138,9 @@
   let correctCount = 0;
   let wrongByLesson = {};
   let answered = false;
+  // Joriy test sessiyasi javoblari (faqat qisqa meta — matn saqlanmaydi)
+  let sessionMisses = []; // {lesson, type, id?, tag?}
+  let testStartedAt = 0;
 
   const qTag = document.getElementById('qTag');
   const qIdx = document.getElementById('qIdx');
@@ -1092,6 +1185,8 @@
         return;
       }
       qi = 0; correctCount = 0; wrongByLesson = {};
+      sessionMisses = [];
+      testStartedAt = Date.now();
       setupArea.classList.add('hide');
       resultArea.classList.remove('show');
       testArea.classList.add('show');
@@ -1282,6 +1377,12 @@
       btn.classList.add('wrong');
       allBtns[q.correct].classList.add('correct');
       wrongByLesson[q.lesson] = (wrongByLesson[q.lesson]||0) + 1;
+      sessionMisses.push({
+        lesson: q.lesson,
+        type: q.type || 'mcq',
+        id: q.id || null,
+        tag: (LESSON_TITLES[q.lesson] || ('L'+q.lesson)).slice(0,24)
+      });
       addXp(2, q.lesson, false);
     }
     explainBox.innerHTML = "<b>" + (isCorrect ? "To'g'ri! " : "Noto'g'ri. ") + "</b>" + q.exp;
@@ -1412,6 +1513,12 @@ async function checkWrite(userCode, q, retryWrap, checkBtn){
       checkBtn.style.display = 'none';
     } else {
       wrongByLesson[q.lesson] = (wrongByLesson[q.lesson]||0) + 1;
+      sessionMisses.push({
+        lesson: q.lesson,
+        type: 'write',
+        id: q.id || null,
+        tag: (LESSON_TITLES[q.lesson] || ('L'+q.lesson)).slice(0,24)
+      });
       addXp(3, q.lesson, false);
       explainBox.innerHTML = "<b style='color:var(--danger);'>Hali to'liq to'g'ri emas. </b>" + escapeHtml(parsed.feedback);
       checkBtn.disabled = false;
@@ -1478,6 +1585,30 @@ Vazifang: to'g'ri javobni AYTMASDAN, o'quvchini to'g'ri fikrlash yo'liga solib q
     const weakList = document.getElementById('weakList');
     const weakItems = document.getElementById('weakItems');
     const entries = Object.entries(wrongByLesson).sort((a,b)=>b[1]-a[1]);
+
+    // Test sessiyasini Firestore (va local) ga yozamiz — AI chat shuni ko'radi
+    const now = new Date();
+    const weakCompact = entries.slice(0, 6).map(([l,c]) => ({ l: parseInt(l,10), n: c }));
+    // Misses: eng ko'pi 12 ta, faqat meta
+    const missesCompact = sessionMisses.slice(0, 12).map(m => ({
+      lesson: m.lesson,
+      type: m.type,
+      id: m.id || undefined,
+      tag: m.tag
+    }));
+    recordTestSession({
+      ts: now.getTime(),
+      date: todayStr(),
+      time: localTimeStr(now),
+      startedAt: testStartedAt || null,
+      durationSec: testStartedAt ? Math.round((now.getTime() - testStartedAt)/1000) : null,
+      lesson: currentLesson,
+      total: testQuestions.length,
+      correct: correctCount,
+      pct: pct,
+      weak: weakCompact,
+      misses: missesCompact
+    });
     if(entries.length){
       weakList.style.display = 'block';
       weakItems.innerHTML = entries.map(([lesson,count])=>
@@ -1588,12 +1719,25 @@ Agar faollikda katta bo'shliq bo'lsa, buni albatta tanbeh sifatida qo'shib qo'y.
     const facts = studentFactsSummary();
     const currentTopic = `${currentLesson}. ${LESSON_TITLES[currentLesson] || "Mavzu"}`;
     const act = activitySummaryForAI();
+    const th = testHistorySummaryForAI();
 
     let gapLine = "";
     if(act.gapNow !== null && act.gapNow >= 2){
       gapLine = `\n- OGOHLANTIRISH: o'quvchi ${act.gapNow} kundan beri kelmagan. Buni albatta tanbeh sifatida eslat, lekin bir marta, ortiqcha cho'zmasdan.`;
     } else if(act.streak >= 3){
       gapLine = `\n- O'quvchi ${act.streak} kun ketma-ket faol bo'lgan — buni qisqa tan ol, lekin bo'shashtirib yubormaslik uchun keyin darrov intizomga qayt.`;
+    }
+
+    let testBlock = "- Test tarixi: hali yo'q";
+    if(th.hasHistory && th.last){
+      const last = th.last;
+      const lastWeak = (last.weak || []).slice(0,4).map(w => `dars ${w.l} (${LESSON_TITLES[w.l]||'?'}) ×${w.n}`).join(', ') || "xato yo'q";
+      testBlock =
+        `- Oxirgi test: ${last.date} ${last.time||''} — dars ${last.lesson} gacha, ${last.correct}/${last.total} (${last.pct}%), zaif: ${lastWeak}` +
+        `\n- ${th.todayLine}` +
+        (th.trend ? `\n- Trend: ${th.trend}` : "") +
+        `\n- So'nggi testlar (qisqa): ${th.text}` +
+        `\n- Jami saqlangan testlar: ${th.totalSessions}`;
     }
 
     return `Sen "Angry Teacher" — qattiq, talabchan, sabrsiz, lekin adolatli JavaScript o'qituvchisan. O'quvchi ismi: ${STUDENT_NAME}.
@@ -1605,14 +1749,17 @@ USLUB QOIDALARI (har biriga qat'iy amal qil, faqat bir marta o'qi, yetarli):
 4. TAQIQ: butun so'z yoki butun gapni katta harflar bilan yozish MUTLAQO MAN ETILGAN, istisnosiz. Faqat oddiy kichik harflar bilan, normal grammatika bilan yoz — xuddi jahli chiqqan odam ovozini ko'tarib gapirgandek emas, past ovozda lekin qat'iy va sovuq tarzda gapirgandek yoz. Jahldorlik so'z tanlovi va ohang orqali ifodalansin (masalan: "Bu qanaqa javob o'zi. Yana bir bor o'yla." kabi), harflar balandligi orqali emas.
 5. Markdown belgilar (**, #, va h.k.) ishlatma — oddiy matn yoz.
 6. Sen — real o'qituvchisan, ChatGPT yoki AI degan gapga "o'qitganman, bilaman, savolga qayt" tarzida qisqa javob ber va mavzuga qayt.
+7. Test natijalarini BILASAN. Agar o'quvchi "test yechdim", "yaxshilandim", "15-dekabrdagi testdan yaxshiman" desa — pastdagi TEST TARIXI bo'yicha aniq gapir. Taxmin qilma. Past natija yoki takroriy zaif mavzu bo'lsa — tanbeh ber: qaysi darslarni yaxshi o'zlashtirmaganini ayt. Yaxshilanish bo'lsa — qisqa tan ol, lekin bo'shashtirma.
 
 KONTEKST (buni bilib gapir, lekin har safar sanab o'tirma):
 - Hozirgi dars: ${currentTopic}
-- Zaif mavzulari: ${weak || "hali aniqlanmagan"}
+- Zaif mavzulari (umumiy): ${weak || "hali aniqlanmagan"}
 - O'quvchi haqida ma'lum faktlar: ${facts || "hali yo'q"}
 - Faollik: ketma-ket ${act.streak} kun faol, jami ${act.totalDays} kun faol bo'lgan, oxirgi faoliyatdan ${act.gapNow === null ? 'hali ma\'lumot yo\'q' : act.gapNow + ' kun'} o'tgan.${gapLine}
+- TEST TARIXI:
+${testBlock}
 
-VAZIFANG: o'quvchini intizomda ushlab turish, mavzuni chuqur tushunishga undash, va bo'shashganda darhol tanbeh berish — lekin har doim insonga hurmat saqlagan holda.`;
+VAZIFANG: o'quvchini intizomda ushlab turish, mavzuni chuqur tushunishga undash, test natijalariga asoslanib aniq tanbeh yoki yo'l-yo'riq berish — lekin har doim insonga hurmat saqlagan holda.`;
   }
 
   function buildOnboardingSystemPrompt(){
@@ -1895,7 +2042,23 @@ ${conversationText}`;
 
       if(!needsOnboarding){
         const currentTopic = `${currentLesson}. ${LESSON_TITLES[currentLesson]}`;
-        openerPrompt = `O'quvchi bilan oldin gaplashgansan. U qayta chatga kirdi. Unga qisqa (2-3 gap), tabiiy salom ber va "${currentTopic}" mavzusiga ishora qil. Agar kontekstda faollik bo'shlig'i haqida ogohlantirish bo'lsa, shuni ham qisqa eslat.`;
+        const th = testHistorySummaryForAI();
+        let testHint = "";
+        if(th.hasHistory && th.last){
+          const L = th.last;
+          if(L.date === todayStr()){
+            if(L.pct < 60){
+              testHint = ` Bugun test yechgan: ${L.correct}/${L.total} (${L.pct}%) — past natija. Qattiq tanbeh ber, zaif darslarni eslat.`;
+            } else if(L.pct < 85){
+              testHint = ` Bugun test yechgan: ${L.correct}/${L.total} (${L.pct}%) — o'rtacha. Qoniqarli emasligini ayt, zaif joylarni eslat.`;
+            } else {
+              testHint = ` Bugun test yechgan: ${L.correct}/${L.total} (${L.pct}%) — yaxshi, lekin bo'shashtirma.`;
+            }
+          } else {
+            testHint = ` Oxirgi test ${L.date}: ${L.correct}/${L.total} (${L.pct}%). Kerak bo'lsa qisqa eslat.`;
+          }
+        }
+        openerPrompt = `O'quvchi bilan oldin gaplashgansan. U qayta chatga kirdi. Unga qisqa (2-3 gap), tabiiy salom ber va "${currentTopic}" mavzusiga ishora qil. Agar kontekstda faollik bo'shlig'i haqida ogohlantirish bo'lsa, shuni ham qisqa eslat.${testHint}`;
       } else {
         const questions = await getPersonalQuestions();
         openerPrompt = `O'quvchi bilan BIRINCHI marta gaplashyapsan. Qisqa (2-3 gap) tanishuv salomi ber, so'ng quyidagi savollardan birini (hammasini emas, faqat birinchisini) so'ra:\n${questions.slice(0,3).join('\n')}`;
