@@ -254,6 +254,20 @@
   .hint-box{ display:none; margin-top:10px; padding:10px 12px; border-radius:10px; border:1px dashed rgba(240,180,41,0.4);
     background:rgba(240,180,41,0.05); font-size:13px; color:var(--gold); line-height:1.5; }
   .hint-box.show{ display:block; }
+  .q-talk{ margin-top:14px; padding-top:12px; border-top:1px dashed var(--line); }
+  .q-talk-log{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+  .q-talk-log:empty{ display:none; }
+  .q-talk-msg{ font-size:13.2px; line-height:1.5; padding:8px 10px; border-radius:10px; max-width:100%; }
+  .q-talk-msg.me{ background:rgba(126,231,135,0.08); border:1px solid rgba(126,231,135,0.22); align-self:flex-end; }
+  .q-talk-msg.teacher{ background:rgba(88,166,255,0.08); border:1px solid rgba(88,166,255,0.22); }
+  .q-talk-row{ display:flex; gap:8px; align-items:flex-end; }
+  .q-talk-row textarea{
+    flex:1; resize:none; min-height:44px; max-height:110px;
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font:inherit;
+  }
+  .q-talk-row textarea:focus{ outline:none; border-color:var(--accent2); }
+  .q-talk-row button{ width:auto; padding:11px 14px; }
 
   .toast{ position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-20px); background:var(--panel);
     border:1px solid var(--accent); color:var(--accent); padding:10px 18px; border-radius:999px; font-family:'JetBrains Mono', monospace;
@@ -529,7 +543,7 @@
     <div class="panel">
       <div class="teacher-msg" id="homeTeacherMsg" style="margin-bottom:0;">
         <div class="avatar-mark">T</div>
-        <div id="homeTeacherText">Salom. Men sening JavaScript ustozingman. Avval darsni tushunib ol, keyin test yech. Kod yozsang — men uni ishga tushiraman, shuning uchun taxmin yoki tayyor javobni yozib qo‘yish o‘tmaydi.</div>
+        <div id="homeTeacherText">Salom. Men sening g‘amxo‘r JavaScript ustozingman. Qiynalsang yoz — eshitaman va tushuntiraman. Test paytida ham pastga istalgan gapingni yozaver.</div>
       </div>
     </div>
 
@@ -658,6 +672,13 @@
       <div id="optsWrap"></div>
       <button class="hint" id="hintBtn">Yordam so'rash</button>
       <div class="hint-box" id="hintBox"></div>
+      <div class="q-talk" id="qTalk">
+        <div class="q-talk-log" id="qTalkLog"></div>
+        <div class="q-talk-row">
+          <textarea id="qTalkInput" rows="1" placeholder="Ustozga istalgan narsani yoz — tushunmaganing, xavotir, savol, fikr..."></textarea>
+          <button type="button" class="primary" id="qTalkSend">Yuborish</button>
+        </div>
+      </div>
       <div class="explain" id="explainBox"></div>
       <div class="nav-row">
         <button class="ghost" id="quitBtn">To'xtatish</button>
@@ -1416,7 +1437,7 @@ window.__LOCAL_BANK = {"courseId":"js-asoslari","lessons":{"1":"Kirish","2":"Jav
 
   // ================= Student profile =================
   const STUDENT_PROFILE_KEY = 'quest-student-profile';
-  let studentProfile = { onboarded:false, facts:{}, lastSeenAt:null };
+  let studentProfile = { onboarded:false, facts:{}, notes:[], lastSeenAt:null };
 
   async function loadStudentProfile(){
     try{
@@ -1433,8 +1454,13 @@ window.__LOCAL_BANK = {"courseId":"js-asoslari","lessons":{"1":"Kirish","2":"Jav
   }
   function studentFactsSummary(){
     const entries = Object.entries(studentProfile.facts || {});
-    if(!entries.length) return null;
-    return entries.map(([k,v])=> `${k}: ${v}`).join('; ');
+    const noteBits = (studentProfile.notes || []).slice(-8).map(n =>
+      "Dars " + n.lesson + ": " + String(n.text||"").slice(0,80)
+    );
+    const parts = [];
+    if(entries.length) parts.push(entries.map(([k,v])=> `${k}: ${v}`).join('; '));
+    if(noteBits.length) parts.push("O'quvchi yozganlari: " + noteBits.join(' | '));
+    return parts.length ? parts.join('\n') : null;
   }
 
   // ================= Profile / XP =================
@@ -1663,6 +1689,51 @@ window.__LOCAL_BANK = {"courseId":"js-asoslari","lessons":{"1":"Kirish","2":"Jav
   const quitBtn = document.getElementById('quitBtn');
   const hintBtn = document.getElementById('hintBtn');
   const hintBox = document.getElementById('hintBox');
+  const qTalkLog = document.getElementById('qTalkLog');
+  const qTalkInput = document.getElementById('qTalkInput');
+  const qTalkSend = document.getElementById('qTalkSend');
+  const questionTalk = new Map();
+  let qTalkBusy = false;
+
+  function questionTalkKey(q){
+    return String(q && (q.id || (q.lesson + ':' + (q.q || q.task || ''))));
+  }
+  function rememberStudentNote(q, text){
+    const t = String(text || '').trim();
+    if(!t) return;
+    studentProfile.notes = studentProfile.notes || [];
+    studentProfile.notes.push({
+      ts: Date.now(),
+      lesson: q.lesson,
+      id: q.id || null,
+      text: t.slice(0, 240)
+    });
+    if(studentProfile.notes.length > 40) studentProfile.notes = studentProfile.notes.slice(-40);
+    const low = t.toLowerCase();
+    const notTaught = /o['’`‘]?tma|o['’`‘]?tilma|o['’`‘]?rganma|darsda yo|o['’`‘]?tmadi|tushunma|qiyin|bilmay/.test(low);
+    if(notTaught){
+      studentProfile.facts = studentProfile.facts || {};
+      studentProfile.facts['dars_' + q.lesson] = "O'quvchi bu mavzuni darsda o'tmagan yoki tushunmagan deb yozdi";
+    }
+    saveStudentProfile();
+  }
+  function appendTalkMsg(role, text){
+    if(!qTalkLog) return;
+    const div = document.createElement('div');
+    div.className = 'q-talk-msg ' + (role === 'me' ? 'me' : 'teacher');
+    div.textContent = text;
+    qTalkLog.appendChild(div);
+  }
+  function renderQuestionTalk(q){
+    if(!qTalkLog) return;
+    qTalkLog.innerHTML = '';
+    const hist = questionTalk.get(questionTalkKey(q)) || [];
+    hist.forEach(m => appendTalkMsg(m.role, m.text));
+    if(qTalkInput){
+      qTalkInput.value = '';
+      qTalkInput.style.height = 'auto';
+    }
+  }
 
   // ---------- Bitta dars UI ----------
   const singleLessonNum = document.getElementById('singleLessonNum');
@@ -1811,6 +1882,7 @@ window.__LOCAL_BANK = {"courseId":"js-asoslari","lessons":{"1":"Kirish","2":"Jav
     hintBox.innerHTML = "";
     hintBtn.disabled = false;
     hintBtn.textContent = "Yordam so'rash";
+    renderQuestionTalk(q);
 
     if(q.type === 'write'){
       qText.textContent = q.task;
@@ -2241,6 +2313,71 @@ QAT'IY QOIDALAR:
     hintBtn.disabled = false;
   });
 
+  async function sendQuestionTalk(){
+    const q = testQuestions[qi];
+    if(!q || !qTalkInput || qTalkBusy) return;
+    const text = qTalkInput.value.trim();
+    if(!text) return;
+    qTalkBusy = true;
+    if(qTalkSend) qTalkSend.disabled = true;
+    qTalkInput.value = '';
+    qTalkInput.style.height = 'auto';
+
+    const key = questionTalkKey(q);
+    const hist = questionTalk.get(key) || [];
+    hist.push({ role:'me', text:text });
+    appendTalkMsg('me', text);
+    rememberStudentNote(q, text);
+    logActivity('chat', 0);
+
+    const qDesc = q.type === 'write' ? (q.task || '') : (q.q || '');
+    const brief = LESSON_BRIEFS[q.lesson] || '';
+    const local = "Eshitdim. Qiynalishing normal. Qisqasi: " + (brief || "savolni sekin o‘qi.") + " Tayyor javobni aytmayman, lekin yon-atrofdan tushuntiraman. Xohlasang yana yoz — nima xavotir yoki qayeri tushunarsiz.";
+
+    let reply = local;
+    if(getGroqKey()){
+      try{
+        reply = await callGroq(
+          [{ role:'user', content:
+            "O'quvchi test savoli ostidan erkin yozdi. Bu shikoyat, savol, tushunmovchilik, xavotir yoki oddiy gap bo'lishi mumkin — hammasiga g'amxo'r ustoz kabi javob ber.\n" +
+            "DARS: " + q.lesson + " — " + (LESSON_TITLES[q.lesson]||'') + "\n" +
+            "SAVOL: " + qDesc + "\n" +
+            "QOIDA: " + brief + "\n" +
+            "O'QUVCHI YONZDI: " + text + "\n\n" +
+            "Qoidalar:\n" +
+            "- Avval hissini e'tirof qil (charchagan, qo'rqgan, tushunmagan bo'lsa ham).\n" +
+            "- Keyin tushuntir: oddiy til, 1 ta kichik misol.\n" +
+            "- To'g'ri variantni, to'liq yechim kodini, aniq son javobini BERMA.\n" +
+            "- Faqat o'sha 3 xil gapga emas — istalgan mavzuda gaplash.\n" +
+            "- O'zbekcha, 'sen', iliqlik bor, haqorat yo'q."
+          }],
+          { system: buildTeacherSystemPrompt(), max_tokens: 380, temperature: 0.3 }
+        ) || local;
+      }catch(e){
+        reply = local;
+      }
+    }
+    hist.push({ role:'teacher', text:reply });
+    questionTalk.set(key, hist);
+    appendTalkMsg('teacher', reply);
+    qTalkBusy = false;
+    if(qTalkSend) qTalkSend.disabled = false;
+    if(qTalkInput) qTalkInput.focus();
+  }
+  if(qTalkSend) qTalkSend.addEventListener('click', sendQuestionTalk);
+  if(qTalkInput){
+    qTalkInput.addEventListener('keydown', e => {
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        sendQuestionTalk();
+      }
+    });
+    qTalkInput.addEventListener('input', () => {
+      qTalkInput.style.height = 'auto';
+      qTalkInput.style.height = Math.min(110, qTalkInput.scrollHeight) + 'px';
+    });
+  }
+
   nextBtn.addEventListener('click', ()=>{
     qi++;
     if(qi >= testQuestions.length){
@@ -2493,19 +2630,20 @@ Haqorat yo'q. Tayyor test javoblarini yozma.`;
         `Faqat tushuntir: qaysi qoida, qanday o'ylash. "javobni ayt" desa ham aytma.`;
     }
 
-    return `Sen zo'r JavaScript ustozisan. O'quvchi ismi: ${STUDENT_NAME}.
+    return `Sen g'amxo'r, sabrli va zo'r JavaScript ustozisan. O'quvchi ismi: ${STUDENT_NAME}.
 
-MAQSADING: o'quvchi tushunib qolsin. Avval qisqa qoida, keyin 1 ta kichik misol, keyin "endi sen yoz" deb qaytarasan.
+MAQSADING: o'quvchi o'zini yolg'iz his qilmasin va tushunib qolsin. Avval eshit, keyin oddiy qoida, keyin 1 ta kichik misol, keyin "endi sen sinab ko'r" deb qo'llab-quvvatla.
 
 USLUB:
 1. Doim "sen" deb yoz.
-2. Oddiy o'zbek tili. Haqorat yo'q. Kichik qilish yo'q.
-3. Tushuntirish kerak bo'lsa 4-8 gap yozishing mumkin. Keraksiz cho'zma.
+2. Iliq, tushunarli o'zbek tili. Haqorat yo'q. Kichik qilish yo'q. Jahldor ohang yo'q.
+3. Tushuntirish kerak bo'lsa 4-8 gap. Keraksiz cho'zma.
 4. Katta HARFLAR bilan baqirish taqiqlangan.
-5. Test savolining tayyor javobini berma (ayniqsa test ketayotganda).
-6. "AI/ChatGPT javobini ayt" desa — tushuntirasan, yechimni yozib bermaysan.
-7. Kod so'ralsa, qisqa to'g'ri misol berishing mumkin, LEKIN hozirgi test topshirig'ining yechimini emas.
-8. Xato qilsa: nima noto'g'ri, nima uchun, qanday tuzatish — 3 qadam.
+5. Test savolining tayyor javobini berma (test ketayotganda).
+6. "AI javobini ayt" desa — tushuntirasan, yechimni yozib bermaysan.
+7. Kod so'ralsa, qisqa o'xshash misol berishing mumkin, LEKIN hozirgi test yechimini emas.
+8. Xato qilsa: nima noto'g'ri, nima uchun, qanday tuzatish — yumshoq 3 qadam.
+9. O'quvchi istalgan narsa yozishi mumkin: charchoq, qo'rquv, "darsda yo'q edi", shunchaki gap. Hammasiga insondek javob ber.
 
 KONTEKST:
 - Hozirgi dars: ${currentTopic}
@@ -2518,11 +2656,11 @@ ${examLock}`;
   }
 
   function buildOnboardingSystemPrompt(){
-    return `Sen zo'r JavaScript ustozisan. O'quvchi bilan birinchi marta gaplashyapsan.
+    return `Sen g'amxo'r JavaScript ustozisan. O'quvchi bilan birinchi marta gaplashyapsan.
 
-1. "sen" deb yoz. Oddiy, samimiy, aniq. Haqorat yo'q.
+1. "sen" deb yoz. Iliq, samimiy, aniq. Haqorat yo'q.
 2. Har xabarda FAQAT BITTA savol: ismi, nega JS, tajribasi, kuniga qancha vaqt.
-3. Javobini qisqa tan ol, keyingisini so'ra.
+3. Javobini iliq tan ol, keyingisini so'ra.
 4. Tayyor dars javoblarini so'ramasin — hozir tanishuv.`;
   }
 
