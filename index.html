@@ -1717,6 +1717,25 @@ window.__LOCAL_BANK = {"courseId":"js-asoslari","lessons":{"1":"Kirish","2":"Jav
     }
     saveStudentProfile();
   }
+  function softenTeacherText(text, maxSent, maxChars){
+    let t = String(text || "");
+    t = t.replace(/```[\s\S]*?```/g, " ");
+    t = t.replace(/`+/g, "");
+    t = t.replace(/\*\*/g, "");
+    t = t.replace(/#{1,6}\s*/g, "");
+    t = t.replace(/^\s*[-*•]\s+/gm, "");
+    t = t.replace(/\s*---+\s*/g, " ");
+    t = t.replace(/\bSalom,\s*MR!?\s*/gi, "");
+    t = t.replace(/\bMR!\s*/g, "");
+    t = t.replace(/\n+/g, " ");
+    t = t.replace(/\s+/g, " ").trim();
+    const limitS = maxSent || 4;
+    const limitC = maxChars || 320;
+    const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+    if(parts.length > limitS) t = parts.slice(0, limitS).join(" ");
+    if(t.length > limitC) t = t.slice(0, limitC - 3).replace(/\s+\S*$/, "") + "...";
+    return t;
+  }
   function appendTalkMsg(role, text){
     if(!qTalkLog) return;
     const div = document.createElement('div');
@@ -2332,31 +2351,27 @@ QAT'IY QOIDALAR:
 
     const qDesc = q.type === 'write' ? (q.task || '') : (q.q || '');
     const brief = LESSON_BRIEFS[q.lesson] || '';
-    const local = "Eshitdim. Qiynalishing normal. Qisqasi: " + (brief || "savolni sekin o‘qi.") + " Tayyor javobni aytmayman, lekin yon-atrofdan tushuntiraman. Xohlasang yana yoz — nima xavotir yoki qayeri tushunarsiz.";
+    const local = "Qo‘rqma, bu oddiy savol. " + (brief ? brief.split(".")[0] + "." : "Avval savol nima so‘rayotganini o‘zi aytib ko‘r.") + " Tayyor javobni aytmayman, lekin yoningdaman.";
 
     let reply = local;
     if(getGroqKey()){
       try{
         reply = await callGroq(
           [{ role:'user', content:
-            "O'quvchi test savoli ostidan erkin yozdi. Bu shikoyat, savol, tushunmovchilik, xavotir yoki oddiy gap bo'lishi mumkin — hammasiga g'amxo'r ustoz kabi javob ber.\n" +
-            "DARS: " + q.lesson + " — " + (LESSON_TITLES[q.lesson]||'') + "\n" +
-            "SAVOL: " + qDesc + "\n" +
-            "QOIDA: " + brief + "\n" +
-            "O'QUVCHI YONZDI: " + text + "\n\n" +
-            "Qoidalar:\n" +
-            "- Avval hissini e'tirof qil (charchagan, qo'rqgan, tushunmagan bo'lsa ham).\n" +
-            "- Keyin tushuntir: oddiy til, 1 ta kichik misol.\n" +
-            "- To'g'ri variantni, to'liq yechim kodini, aniq son javobini BERMA.\n" +
-            "- Faqat o'sha 3 xil gapga emas — istalgan mavzuda gaplash.\n" +
-            "- O'zbekcha, 'sen', iliqlik bor, haqorat yo'q."
+            "O'quvchi test ostidan qisqa yozdi: " + text + "\n" +
+            "Dars " + q.lesson + ": " + (LESSON_TITLES[q.lesson]||'') + "\n" +
+            "Savol: " + qDesc + "\n" +
+            "Yordam qoida: " + brief + "\n\n" +
+            "JAVOB QOIDASI: 2-3 ta JUDA QISQA, tinch gap. Ro'yxat yo'q, markdown yo'q, Salom MR yo'q, kod bloki yo'q. " +
+            "Bolaga qo'rqitmaydigan ohang. To'g'ri variantni aytma."
           }],
-          { system: buildTeacherSystemPrompt(), max_tokens: 380, temperature: 0.3 }
+          { system: buildTeacherSystemPrompt(), max_tokens: 120, temperature: 0.2 }
         ) || local;
       }catch(e){
         reply = local;
       }
     }
+    reply = softenTeacherText(reply) || local;
     hist.push({ role:'teacher', text:reply });
     questionTalk.set(key, hist);
     appendTalkMsg('teacher', reply);
@@ -2637,7 +2652,7 @@ MAQSADING: o'quvchi o'zini yolg'iz his qilmasin va tushunib qolsin. Avval eshit,
 USLUB:
 1. Doim "sen" deb yoz.
 2. Iliq, tushunarli o'zbek tili. Haqorat yo'q. Kichik qilish yo'q. Jahldor ohang yo'q.
-3. Tushuntirish kerak bo'lsa 4-8 gap. Keraksiz cho'zma.
+3. Tushuntirish 2-4 qisqa gap. Ro'yxat, markdown, uzun insho YO'Q.
 4. Katta HARFLAR bilan baqirish taqiqlangan.
 5. Test savolining tayyor javobini berma (test ketayotganda).
 6. "AI javobini ayt" desa — tushuntirasan, yechimni yozib bermaysan.
@@ -3169,7 +3184,7 @@ ${conversationText}`;
       });
 
       typingEl.remove();
-      const finalText = reply || "Kechirasan, javob tayyorlab bo'lmadi. Qayta urinib ko'r.";
+      const finalText = softenTeacherText(reply || "Kechirasan, javob tayyorlab bo'lmadi. Qayta urinib ko'r.", 5, 420);
       session.messages.push({ role: 'assistant', content: finalText });
       session.updatedAt = Date.now();
       renderChatMessage('assistant', finalText);
