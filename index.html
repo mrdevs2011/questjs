@@ -2332,6 +2332,47 @@ QAT'IY QOIDALAR:
     hintBtn.disabled = false;
   });
 
+  function questionAskText(q){
+    const raw = q && q.type === 'write' ? (q.task || '') : (q && q.q || '');
+    return String(raw).split('\n')[0].replace(/\s+/g, ' ').trim();
+  }
+  function localTeacherReply(q, userText, hist){
+    const low = String(userText || '').toLowerCase().replace(/[?!.,:]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const title = LESSON_TITLES[q.lesson] || ('Dars ' + q.lesson);
+    const ask = questionAskText(q) || title;
+    const prev = (hist || []).filter(m => m.role === 'teacher').map(m => m.text);
+    const pick = (arr) => {
+      const unused = arr.filter(s => !prev.some(p => p.slice(0, 28) === s.slice(0, 28)));
+      const pool = unused.length ? unused : arr;
+      return pool[(hist.length || 0) % pool.length];
+    };
+    if(!low){
+      return "Savol shu: " + ask;
+    }
+    if(/nima dey|nima demoq|nima deya|savol nima|nima so['’`]ray|bu nima|nima bu/.test(low) || /^(nima|nimaga|tushunmadim|chunmadim|aha|ok|hm+)$/.test(low)){
+      return pick([
+        "Savol oddiy qilib: «" + ask + "». Variantlarni o‘qi, qaysi biri shu savolga javob — o‘zing tanla.",
+        "U «" + ask + "» deb so‘rayapti. To‘g‘ri variantni aytmayman, lekin savolning o‘zi shu.",
+        "Ma’nosi: " + ask + " Mavzu — " + title + ". Sekin o‘qib chiq."
+      ]);
+    }
+    if(/qiyin|qo['’`]rq|qorq|charcha|bilmayman|yomon/.test(low)){
+      return "Yaxshi, sekin qilamiz. Savol: «" + ask + "». Avval 1-variantni o‘qi, keyin qolganini.";
+    }
+    if(/o['’`]tma|otmagan|darsda yo|o['’`]tilma/.test(low)){
+      const brief = String(LESSON_BRIEFS[q.lesson] || title).split('.')[0];
+      return "Bo‘ladi. Qisqa aytaman: " + brief + ". Endi shu savolga qayt.";
+    }
+    if(/nega|nima uchun/.test(low)){
+      return "Sababini variantlardan qidir. Savol: «" + ask + "».";
+    }
+    return pick([
+      "Yozganingni o‘qidim. Savol: «" + ask + "». Qayeri tushunarsiz — aniqroq yozishing mumkin.",
+      "Tushundim. Bu " + title + " darsi. Savol: «" + ask + "».",
+      "Yoningdaman. Avval savol matnini qayta o‘qi: «" + ask + "»."
+    ]);
+  }
+
   async function sendQuestionTalk(){
     const q = testQuestions[qi];
     if(!q || !qTalkInput || qTalkBusy) return;
@@ -2351,19 +2392,19 @@ QAT'IY QOIDALAR:
 
     const qDesc = q.type === 'write' ? (q.task || '') : (q.q || '');
     const brief = LESSON_BRIEFS[q.lesson] || '';
-    const local = "Qo‘rqma, bu oddiy savol. " + (brief ? brief.split(".")[0] + "." : "Avval savol nima so‘rayotganini o‘zi aytib ko‘r.") + " Tayyor javobni aytmayman, lekin yoningdaman.";
+    const local = localTeacherReply(q, text, hist);
 
     let reply = local;
-    if(getGroqKey()){
+    if(getGroqKey() && text.length >= 18){
       try{
         reply = await callGroq(
           [{ role:'user', content:
-            "O'quvchi test ostidan qisqa yozdi: " + text + "\n" +
+            "O'quvchi test ostidan yozdi: " + text + "\n" +
             "Dars " + q.lesson + ": " + (LESSON_TITLES[q.lesson]||'') + "\n" +
             "Savol: " + qDesc + "\n" +
             "Yordam qoida: " + brief + "\n\n" +
-            "JAVOB QOIDASI: 2-3 ta JUDA QISQA, tinch gap. Ro'yxat yo'q, markdown yo'q, Salom MR yo'q, kod bloki yo'q. " +
-            "Bolaga qo'rqitmaydigan ohang. To'g'ri variantni aytma."
+            "2-3 ta tinch, oddiy gap. Savol nima so'rayotganini tushuntir. " +
+            "Ro'yxat/markdown/Salom MR yo'q. To'g'ri variantni aytma."
           }],
           { system: buildTeacherSystemPrompt(), max_tokens: 120, temperature: 0.2 }
         ) || local;
@@ -2372,6 +2413,7 @@ QAT'IY QOIDALAR:
       }
     }
     reply = softenTeacherText(reply) || local;
+    if(/qo['‘]rqma, bu oddiy savol/i.test(reply)) reply = local;
     hist.push({ role:'teacher', text:reply });
     questionTalk.set(key, hist);
     appendTalkMsg('teacher', reply);
