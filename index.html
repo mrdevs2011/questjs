@@ -1622,19 +1622,30 @@
 
   function renderQuestionText(text){
     qText.innerHTML = "";
-    // Eslatma: bazadagi savollar "natija?", "natijasi?", "natija nima bo'ladi?"
-    // va "natija qanday?" kabi turli formatlarda tugaydi. Oldingi regex faqat
-    // "nima"/"qanday" bilan tugaganlarni ushlardi, oddiy "natija?" bilan
-    // tugagan savollarni (bazadagi ko'pchilik) o'tkazib yuborardi — shu sabab
-    // ular kod-editor ichida emas, oddiy matn sifatida chiqib qolgan.
-    const splitMatch = text.match(/^([\s\S]*?)\s*(natija(?:si)?\s*(?:nima\s*(?:bo'ladi)?|qanday)?\??)$/i);
-    let codePart, questionPart;
-    if(splitMatch){
-      codePart = splitMatch[1].trim();
-      questionPart = splitMatch[2].trim();
-    } else {
-      codePart = null;
-      questionPart = text;
+    // MUHIM: bazadagi barcha "kod" savollari "Savol?\n<kod>" tartibida
+    // yozilgan (savol birinchi qatorda, kod undan keyin) — masalan:
+    // "Quyidagi kodning natijasi nima?\nflat()". Eski regex faqat teskari
+    // tartibni ("<kod>\nSavol?") qidirardi, shu sabab hech qachon mos
+    // kelmasdi va kod hech qachon alohida "code editor" quti ichida
+    // ko'rsatilmasdi. Endi ikkala tartibni ham tekshiramiz.
+    const QUESTION_PHRASE_RE = /natija(?:si)?\s*(?:nima\s*(?:bo'ladi)?|qanday)?\??$/i;
+    let codePart = null, questionPart = text;
+    const nlIdx = text.indexOf('\n');
+    if(nlIdx !== -1){
+      const firstLine = text.slice(0, nlIdx).trim();
+      const afterFirstLine = text.slice(nlIdx + 1).trim();
+      const lastNlIdx = text.lastIndexOf('\n');
+      const lastLine = text.slice(lastNlIdx + 1).trim();
+      const beforeLastLine = text.slice(0, lastNlIdx).trim();
+      if(QUESTION_PHRASE_RE.test(firstLine)){
+        // "Savol?\n<kod>" — bazadagi haqiqiy, asosiy format
+        questionPart = firstLine;
+        codePart = afterFirstLine;
+      } else if(QUESTION_PHRASE_RE.test(lastLine)){
+        // "<kod>\nSavol?" — eski/muqobil format, ehtiyot chorasi sifatida
+        questionPart = lastLine;
+        codePart = beforeLastLine;
+      }
     }
 
     if(codePart && /[;{}()]/.test(codePart)){
@@ -1687,18 +1698,42 @@
     // Bir qatorli kodni ko'p qatorli, indentatsiyali ko'rinishga o'tkazadi.
     // "}" va keyingi else/catch/finally ni bitta qatorga birlashtiradi,
     // va brace chuqurligiga qarab 2 bo'shliqdan indent qo'shadi.
-    let step = code
-      .replace(/\{\s*/g, ' {\n')
-      .replace(/;\s*(?!\s*$)/g, ';\n')
-      .replace(/\}\s*/g, '\n}\n');
+    // Muhim: satr ichidagi string/template literal va "//" izohlarni
+    // hisobga oladi, shuning uchun ular ichidagi { } ; belgilariga
+    // teginmaydi (masalan for(;;) yoki `${...}` buzilmaydi).
+    const tokens = [];
+    const TOKEN_RE = /(["'`])(?:\\.|(?!\1).)*\1|\/\/.*$/gm;
+    let last = 0, m;
+    while((m = TOKEN_RE.exec(code))){
+      if(m.index > last) tokens.push({ t: code.slice(last, m.index), lock:false });
+      tokens.push({ t: m[0], lock:true });
+      last = TOKEN_RE.lastIndex;
+    }
+    if(last < code.length) tokens.push({ t: code.slice(last), lock:false });
 
-    let lines = step.split('\n').map(l=>l.trim()).filter(l=>l.length);
+    // "Bo'lish nuqtalari"ni faqat lock=false segmentlar ichida,
+    // va faqat for(...) ichidagi ; larni chetlab, joylashtiramiz.
+    let depth = 0; // ( ) chuqurligi — for(;;) ichini aniqlash uchun
+    let out = '';
+    for(const seg of tokens){
+      if(seg.lock){ out += seg.t; continue; }
+      for(const ch of seg.t){
+        if(ch === '(') depth++;
+        if(ch === ')') depth = Math.max(0, depth-1);
+        if(ch === '{'){ out += ' {\n'; continue; }
+        if(ch === '}'){ out += '\n}\n'; continue; }
+        if(ch === ';'){ out += depth > 0 ? ';' : ';\n'; continue; }
+        out += ch;
+      }
+    }
+
+    let lines = out.split('\n').map(l=>l.trim()).filter(l=>l.length);
 
     const merged = [];
     for(const line of lines){
       const prev = merged[merged.length-1];
       if(/^(else|catch|finally)\b/i.test(line) && prev === '}'){
-        merged[merged.length-1] = '} ' + line;
+        merged[merged.length-1] = ('} ' + line).replace(/\s+\{/, ' {');
       } else if(line === ';' && prev !== undefined){
         merged[merged.length-1] = prev + ';';
       } else {
@@ -1706,13 +1741,13 @@
       }
     }
 
-    let depth = 0;
+    let d = 0;
     const indented = merged.map(line => {
-      let printDepth = depth;
-      if(/^\}/.test(line)) printDepth = Math.max(0, depth - 1);
+      let printDepth = d;
+      if(/^\}/.test(line)) printDepth = Math.max(0, d - 1);
       const opens = (line.match(/\{/g)||[]).length;
       const closes = (line.match(/\}/g)||[]).length;
-      depth = Math.max(0, depth + opens - closes);
+      d = Math.max(0, d + opens - closes);
       return '  '.repeat(printDepth) + line;
     });
 
