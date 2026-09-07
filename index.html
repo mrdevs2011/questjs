@@ -2336,40 +2336,86 @@ QAT'IY QOIDALAR:
     const raw = q && q.type === 'write' ? (q.task || '') : (q && q.q || '');
     return String(raw).split('\n')[0].replace(/\s+/g, ' ').trim();
   }
+  const JS_CONCEPTS = [
+    ["object.entries", "Object.entries(obj) obyektni juftliklar ro‘yxatiga aylantiradi. {a:1,b:2} → [['a',1],['b',2]]. Konsolga chiqarish uchun console.log ishlatiladi."],
+    ["object.keys", "Object.keys(obj) faqat kalitlarni massiv qilib beradi. {a:1,b:2} → ['a','b']."],
+    ["object.values", "Object.values(obj) faqat qiymatlarni beradi. {a:1,b:2} → [1,2]."],
+    ["console.log", "console.log(...) qiymatni konsolga chiqaradi. F12 → Console da ko‘rinadi."],
+    ["addEventListener", "addEventListener('click', fn) — hodisa bo‘lsa fn ishlaydi. Tugma bosilishi shu."],
+    ["querySelector", "querySelector('#id') yoki '.class' sahifadan birinchi mos elementni topadi. Topilmasa null."],
+    ["getElementById", "getElementById('x') id='x' elementni topadi."],
+    ["textContent", "textContent element ichidagi oddiy matn. Xavfsizroq usul."],
+    ["createElement", "createElement('p') yangi teg yasaydi. Keyin textContent, keyin append."],
+    ["classList", "classList.add/remove/toggle — CSS class qo‘shadi yoki oladi."],
+    ["preventDefault", "preventDefault odatiy ishni to‘xtatadi, masalan link ochilishini."],
+    ["filter", "filter shartga mos elementlardan YANGI massiv qaytaradi. Aslini o‘zgartirmaydi."],
+    ["map", "map har bir elementni o‘zgartirib yangi massiv qaytaradi."],
+    ["reduce", "reduce massivni bitta qiymatga yig‘adi, masalan yig‘indi."],
+    ["find", "find shartga mos BIRINCHI elementni qaytaradi. Topilmasa undefined."],
+    ["for...of", "for (const x of arr) massivdagi qiymatlarni aylanadi."],
+    ["while", "while (shart) shart rost bo‘lsa takrorlaydi. Hisoblagichni oshirishni unutma."],
+    ["switch", "switch(x){ case 1: ... break } — x ni === bilan solishtiradi."],
+    ["if", "if (shart) { } else { } — shart rost bo‘lsa if, aks holda else."],
+    ["typeof", "typeof qiymat turini matn qilib beradi: 'number', 'string', 'object'."],
+    ["const", "const — qayta = qo‘yib bo‘lmaydi. O‘zgarmas nom."],
+    ["let", "let — qayta qiymat berish mumkin, lekin blok {} ichida yashaydi."],
+    ["function", "function nom(param){ return ... } — qayta ishlatiladigan kod."],
+    ["=>", "o‘q-funksiya: const f = n => n*2. Qisqa yozuv."],
+    ["template", "`Salom, ${ism}` — matn ichiga o‘zgaruvchi qo‘yish."],
+    ["split", "split matnni bo‘laklarga ajratadi. 'a-b'.split('-') → ['a','b']."],
+    ["slice", "slice aslini buzmasdan bo‘lak oladi. Massiv va matnda bor."],
+    ["push", "push massiv oxiriga qo‘shadi."],
+    ["this", "this odatda shu obyektning o‘zi — metod ichida."],
+    ["===", "=== turi va qiymatini solishtiradi. == dan ishonchliroq."],
+    ["null", "null — ataylab 'bo‘sh'. undefined — hali berilmagan."],
+    ["array", "Massiv — 0-indeksli ro‘yxat: [1,2,3]."]
+  ];
+  function explainCurrentQuestion(q){
+    const blob = ((q && (q.task || q.q || '')) + " " + (LESSON_BRIEFS[q.lesson] || "")).toLowerCase();
+    const hits = [];
+    JS_CONCEPTS.forEach(([k, v]) => {
+      if(blob.indexOf(k) !== -1) hits.push(v);
+    });
+    const brief = String(LESSON_BRIEFS[q.lesson] || "").split(".")[0];
+    if(hits.length){
+      return hits.slice(0, 2).join(" ");
+    }
+    if(q && q.type === "write"){
+      return (brief ? brief + ". " : "") + "Topshiriq: kerakli kodni yozib, odatda console.log bilan natijani ko‘rsatasan. Namuna kodini aytmayman — avval o‘zing urinib ko‘r.";
+    }
+    return (brief ? brief + ". " : "") + "Savol shu mavzudan. Variantlarni o‘qib, qaysi gap to‘g‘ri ekanini o‘zing tanla.";
+  }
   function localTeacherReply(q, userText, hist){
-    const low = String(userText || '').toLowerCase().replace(/[?!.,:]+/g, ' ').replace(/\s+/g, ' ').trim();
-    const title = LESSON_TITLES[q.lesson] || ('Dars ' + q.lesson);
-    const ask = questionAskText(q) || title;
-    const prev = (hist || []).filter(m => m.role === 'teacher').map(m => m.text);
+    const low = String(userText || "").toLowerCase().replace(/[?!.,:0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    const title = LESSON_TITLES[q.lesson] || ("Dars " + q.lesson);
+    const explain = explainCurrentQuestion(q);
+    const prev = (hist || []).filter(m => m.role === "teacher").map(m => m.text);
     const pick = (arr) => {
-      const unused = arr.filter(s => !prev.some(p => p.slice(0, 28) === s.slice(0, 28)));
+      const unused = arr.filter(s => !prev.some(p => p.slice(0, 36) === s.slice(0, 36)));
       const pool = unused.length ? unused : arr;
       return pool[(hist.length || 0) % pool.length];
     };
-    if(!low){
-      return "Savol shu: " + ask;
-    }
-    if(/nima dey|nima demoq|nima deya|savol nima|nima so['’`]ray|bu nima|nima bu/.test(low) || /^(nima|nimaga|tushunmadim|chunmadim|aha|ok|hm+)$/.test(low)){
+    const wantsMeaning = /nima|degani|ma['’`]no|tushun|chunma|qanday|nimaga/.test(low);
+    if(wantsMeaning){
       return pick([
-        "Savol oddiy qilib: «" + ask + "». Variantlarni o‘qi, qaysi biri shu savolga javob — o‘zing tanla.",
-        "U «" + ask + "» deb so‘rayapti. To‘g‘ri variantni aytmayman, lekin savolning o‘zi shu.",
-        "Ma’nosi: " + ask + " Mavzu — " + title + ". Sekin o‘qib chiq."
+        explain,
+        explain + " Qisqa: avval nima so‘ralganini tushun, keyin yoz.",
+        title + " darsi. " + explain
       ]);
     }
-    if(/qiyin|qo['’`]rq|qorq|charcha|bilmayman|yomon/.test(low)){
-      return "Yaxshi, sekin qilamiz. Savol: «" + ask + "». Avval 1-variantni o‘qi, keyin qolganini.";
+    if(/qiyin|qo['’`]rq|qorq|charcha|bilmay|yomon/.test(low)){
+      return "Yaxshi, sekin. " + explain;
     }
     if(/o['’`]tma|otmagan|darsda yo|o['’`]tilma/.test(low)){
-      const brief = String(LESSON_BRIEFS[q.lesson] || title).split('.')[0];
-      return "Bo‘ladi. Qisqa aytaman: " + brief + ". Endi shu savolga qayt.";
+      return "Bo‘ladi, hozir aytaman. " + explain;
     }
     if(/nega|nima uchun/.test(low)){
-      return "Sababini variantlardan qidir. Savol: «" + ask + "».";
+      return explain;
     }
     return pick([
-      "Yozganingni o‘qidim. Savol: «" + ask + "». Qayeri tushunarsiz — aniqroq yozishing mumkin.",
-      "Tushundim. Bu " + title + " darsi. Savol: «" + ask + "».",
-      "Yoningdaman. Avval savol matnini qayta o‘qi: «" + ask + "»."
+      "Yozganingni o‘qidim. " + explain,
+      "Tushundim. " + explain,
+      "Yoningdaman. " + explain
     ]);
   }
 
